@@ -1,0 +1,29 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  S3BucketURL:
+    Type: String
+    Description: "URL of S3 bucket that project files are hosted in."
+    Default: "https://s3.amazonaws.com/fortunecookiezen-stack-templates-us-east-1"
+Resources:
+  TenantVpcStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ["", [!Ref "S3BucketURL", "/tenantVpc/01vpc.yaml"]]
+      Parameters:
+        vpccidr: "10.15.4.0/22"
+  TenantSubnetStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ["", [!Ref "S3BucketURL", "/tenantVpc/02tenantsubnets.yaml"]]
+      Parameters:
+        vpcid: !GetAtt ["TenantVpcStack", "Outputs.tenantVpcid"]
+        appacidr: "10.15.4.0/24"
+        appbcidr: "10.15.5.0/24"
+        privateacidr: "10.15.6.0/24"
+        privatebcidr: "10.15.7.0/24"
+Outputs:
+  TenantVpcStack:
+    Value: !Ref TenantVpcStack
+  TenantSubnetStack:
+    Value: !Ref TenantSubnetStack
