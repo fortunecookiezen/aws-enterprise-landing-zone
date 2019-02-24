@@ -28,7 +28,7 @@ Resources:
     Properties:
       BucketName: !Join
       - '-'
-      - -  !Ref AWS::AccountId
+      - -  !Ref AWS::StackName
         -  !Ref AWS::Region
         -  logbucket
       AccessControl: LogDeliveryWrite
@@ -46,7 +46,7 @@ Resources:
     Properties:
       BucketName: !Join
       - '-'
-      - -  !Ref AWS::AccountId
+      - -  !Ref AWS::StackName 
         -  !Ref AWS::Region
         -  deploymentbucket
       AccessControl: Private
