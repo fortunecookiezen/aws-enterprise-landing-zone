@@ -1,0 +1,177 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Public subnet intrastructure CloudFormation template"
+Parameters:
+  vpcid:
+    Description: "VPC Id"
+    Type: AWS::EC2::VPC::Id
+  publicacidr:
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/22
+    Default: 10.15.0.0/25
+  publicbcidr:
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/22
+    Default: 10.15.0.128/25
+  privateacidr:
+    Type: String
+    Description: CIDR to use for private subnet a.
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/24
+    Default: 10.15.2.0/24
+  privatebcidr:
+    Type: String
+    Description: CIDR to use for private subnet b.
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/24
+    Default: 10.15.3.0/24
+
+Resources:
+  IGW:
+    Type: "AWS::EC2::InternetGateway"
+  GatewayAttach:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      InternetGatewayId: !Ref IGW
+      VpcId: !Ref vpcid
+  PublicSubnetA:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs ]
+      CidrBlock: !Ref publicacidr
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref vpcid
+  PublicSubnetB:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs ]
+      CidrBlock: !Ref publicbcidr
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref vpcid
+  SubnetRouteTableAssociatePublicA:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      SubnetId: !Ref PublicSubnetA
+  SubnetRouteTableAssociatePublicB:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      SubnetId: !Ref PublicSubnetB
+  RouteDefaultPublic:
+    Type: "AWS::EC2::Route"
+    DependsOn: GatewayAttach
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+      RouteTableId: !Ref RouteTablePublic
+  RouteDefaultPrivateA:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayA
+      RouteTableId: !Ref RouteTablePrivateA
+  RouteDefaultPrivateB:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayB
+      RouteTableId: !Ref RouteTablePrivateB
+  RouteTablePublic:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref vpcid
+  RouteTablePrivateA:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref vpcid
+  RouteTablePrivateB:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref vpcid
+  EIPNatGWA:
+    DependsOn: GatewayAttach
+    Type: "AWS::EC2::EIP"
+    Properties:
+      Domain: vpc
+  EIPNatGWB:
+    DependsOn: GatewayAttach
+    Type: "AWS::EC2::EIP"
+    Properties:
+      Domain: vpc
+  NatGatewayA:
+    Type: "AWS::EC2::NatGateway"
+    Properties:
+      AllocationId: !GetAtt EIPNatGWA.AllocationId
+      SubnetId: !Ref PublicSubnetA
+  NatGatewayB:
+    Type: "AWS::EC2::NatGateway"
+    Properties:
+      AllocationId: !GetAtt EIPNatGWB.AllocationId
+      SubnetId: !Ref PublicSubnetB
+  SubnetPrivateA: # Private Subnet for App Env in AZ - A
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs ]
+      CidrBlock: !Ref privateacidr
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref vpcid
+  SubnetPrivateB: # Private Subnet for App Env in AZ - B
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs ]
+      CidrBlock: !Ref privatebcidr
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref vpcid
+  SubnetRouteTableAssociatePrivateA: # Associates the subnet with a route table - passed via parameter
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref RouteTablePrivateA
+      SubnetId: !Ref SubnetPrivateA 
+  SubnetRouteTableAssociatePrivateB: # Associates the subnet with a route table - passed via parameter
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref RouteTablePrivateB
+      SubnetId: !Ref SubnetPrivateB 
+
+Outputs:
+  natgatewayaid:
+    Description: ID of NAT Gateway A
+    Value: !Ref NatGatewayA
+  natgatewaybid:
+    Description: ID of NAT Gateway B
+    Value: !Ref NatGatewayB
+  publicroutetable:
+    Description: ID of Public Route Table
+    Value: !Ref RouteTablePublic
+    Export: # added to export
+      Name: publicrt
+  privateroutetablea:
+    Description: ID of Private Route Table - A
+    Value: !Ref RouteTablePrivateA
+    Export: # added to export
+      Name: privaterta
+  privateroutetableb:
+    Description: ID of Private Route Table - B
+    Value: !Ref RouteTablePrivateB
+    Export: # added to export
+      Name: privatertb
+  privatesubneta:
+    Description: ID of Private Subnet - A
+    Value: !Ref SubnetPrivateA
+    Export: # added to export
+      Name: privatesubneta
+  privatesubnetb:
+    Description: ID of Private Subnet - B
+    Value: !Ref SubnetPrivateB
+    Export: # added to export
+      Name: privatesubnetb
