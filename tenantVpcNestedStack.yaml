@@ -9,7 +9,7 @@ Resources:
   TenantVpcStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Join ["", [!Ref "S3BucketURL", "/tenantVpc/01vpc.yaml"]]
+      TemplateURL: !Join ["", [!Ref "S3BucketURL", "/common/01vpc.yaml"]]
       Parameters:
         vpccidr: "10.15.4.0/22"
   TenantSubnetStack:
@@ -17,7 +17,7 @@ Resources:
     Properties:
       TemplateURL: !Join ["", [!Ref "S3BucketURL", "/tenantVpc/02tenantsubnets.yaml"]]
       Parameters:
-        vpcid: !GetAtt ["TenantVpcStack", "Outputs.tenantVpcid"]
+        vpcid: !GetAtt ["TenantVpcStack", "Outputs.VpcId"]
         appacidr: "10.15.4.0/24"
         appbcidr: "10.15.5.0/24"
         privateacidr: "10.15.6.0/24"
