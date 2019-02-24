@@ -9,6 +9,13 @@ Parameters:
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
     ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/16
     Default: 10.15.0.0/22
+  ASI:
+    Type: String
+    MinLength: 3
+    MaxLength: 4
+    Description: "ASI Prefix for buckets"
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9-]*"
+
 Resources:
   VPC:
     Type: "AWS::EC2::VPC"
@@ -30,6 +37,7 @@ Resources:
       - '-'
       - -  !Ref AWS::AccountId
         -  !Ref AWS::Region
+        -  !Ref ASI
         -  logbucket
       AccessControl: LogDeliveryWrite
       BucketEncryption:
@@ -46,8 +54,9 @@ Resources:
     Properties:
       BucketName: !Join
       - '-'
-      - -  !Ref AWS::AccountId 
+      - -  !Ref AWS::AccountId
         -  !Ref AWS::Region
+        -  !Ref ASI
         -  deploymentbucket
       AccessControl: Private
       BucketEncryption:
