@@ -91,11 +91,11 @@ Resources:
 
 
 Outputs:
-  tenantVpcid:
+  VpcId:
     Description: ID of Shared Infrastructure VPC
     Value: !Ref VPC
     Export: # added to export
-      Name: tenantVpcid
+      Name: VpcId
   logbucketurl:
     Description: Shared Infrastructure App Bucket
     Value: !GetAtt S3LogBucket.DomainName
