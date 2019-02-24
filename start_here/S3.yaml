@@ -1,0 +1,56 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "S3 Bucket to hold CloudFormation templates for infrastructure creation. Run
+this template first, then upload the CloudFormation templates to this bucket based on the
+repository structure"
+Resources:
+
+  S3TemplateBucket:
+    DeletionPolicy: Retain
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Join
+      - '-'
+      - -  !Ref AWS::AccountId 
+        -  !Ref AWS::Region
+        -  templatebucket
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        -
+          Key: "ManagedBy"
+          Value: !Ref AWS::StackName
+
+  TemplateBucketPolicy: 
+    Type: AWS::S3::BucketPolicy
+    Properties: 
+      Bucket: !Ref S3TemplateBucket
+      PolicyDocument: 
+        Statement: 
+          - 
+            Action: 
+              - "s3:GetObject"
+            Effect: "Allow"
+            Resource: 
+              Fn::Join: 
+                - ""
+                - 
+                  - "arn:aws:s3:::"
+                  - 
+                    Ref: "S3TemplateBucket"
+                  - "/*"
+            Principal:
+              AWS: 
+              - "418441809434"
+              - "659937892861"
+
+Outputs:
+  templatebucketurl:
+    Description: Deploy templates to this bucket
+    Value: !GetAtt S3TemplateBucket.DomainName
+    Export: # added to export
+      Name: templatebucketurl
+
