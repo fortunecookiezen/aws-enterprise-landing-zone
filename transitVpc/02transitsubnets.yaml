@@ -50,6 +50,11 @@ Resources:
       CidrBlock: !Ref publicacidr
       MapPublicIpOnLaunch: true
       VpcId: !Ref vpcid
+      Tags:
+        -
+          Key: "Name"
+          Value: "public-a"
+
   PublicSubnetB:
     Type: "AWS::EC2::Subnet"
     Properties:
@@ -57,16 +62,23 @@ Resources:
       CidrBlock: !Ref publicbcidr
       MapPublicIpOnLaunch: true
       VpcId: !Ref vpcid
+      Tags:
+        -
+          Key: "Name"
+          Value: "public-b"
+
   SubnetRouteTableAssociatePublicA:
     Type: "AWS::EC2::SubnetRouteTableAssociation"
     Properties:
       RouteTableId: !Ref RouteTablePublic
       SubnetId: !Ref PublicSubnetA
+
   SubnetRouteTableAssociatePublicB:
     Type: "AWS::EC2::SubnetRouteTableAssociation"
     Properties:
       RouteTableId: !Ref RouteTablePublic
       SubnetId: !Ref PublicSubnetB
+
   RouteDefaultPublic:
     Type: "AWS::EC2::Route"
     DependsOn: GatewayAttach
@@ -74,50 +86,68 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref IGW
       RouteTableId: !Ref RouteTablePublic
+
   RouteDefaultPrivateA:
     Type: "AWS::EC2::Route"
     Properties:
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGatewayA
       RouteTableId: !Ref RouteTablePrivateA
+
   RouteDefaultPrivateB:
     Type: "AWS::EC2::Route"
     Properties:
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGatewayB
       RouteTableId: !Ref RouteTablePrivateB
+
   RouteTablePublic:
     Type: "AWS::EC2::RouteTable"
     Properties:
       VpcId: !Ref vpcid
+
   RouteTablePrivateA:
     Type: "AWS::EC2::RouteTable"
     Properties:
       VpcId: !Ref vpcid
+
   RouteTablePrivateB:
     Type: "AWS::EC2::RouteTable"
     Properties:
       VpcId: !Ref vpcid
+
   EIPNatGWA:
     DependsOn: GatewayAttach
     Type: "AWS::EC2::EIP"
     Properties:
       Domain: vpc
+
   EIPNatGWB:
     DependsOn: GatewayAttach
     Type: "AWS::EC2::EIP"
     Properties:
       Domain: vpc
+
   NatGatewayA:
     Type: "AWS::EC2::NatGateway"
     Properties:
       AllocationId: !GetAtt EIPNatGWA.AllocationId
       SubnetId: !Ref PublicSubnetA
+      Tags:
+        -
+          Key: "Name"
+          Value: "natgw-a"
+
   NatGatewayB:
     Type: "AWS::EC2::NatGateway"
     Properties:
       AllocationId: !GetAtt EIPNatGWB.AllocationId
       SubnetId: !Ref PublicSubnetB
+      Tags:
+        -
+          Key: "Name"
+          Value: "natgw-b"
+
   SubnetPrivateA: # Private Subnet for App Env in AZ - A
     Type: "AWS::EC2::Subnet"
     Properties:
@@ -125,6 +155,11 @@ Resources:
       CidrBlock: !Ref privateacidr
       MapPublicIpOnLaunch: false
       VpcId: !Ref vpcid
+      Tags:
+        -
+          Key: "Name"
+          Value: "private-a"
+
   SubnetPrivateB: # Private Subnet for App Env in AZ - B
     Type: "AWS::EC2::Subnet"
     Properties:
@@ -132,11 +167,17 @@ Resources:
       CidrBlock: !Ref privatebcidr
       MapPublicIpOnLaunch: false
       VpcId: !Ref vpcid
+      Tags:
+        -
+          Key: "Name"
+          Value: "private-b"
+
   SubnetRouteTableAssociatePrivateA: # Associates the subnet with a route table - passed via parameter
     Type: "AWS::EC2::SubnetRouteTableAssociation"
     Properties:
       RouteTableId: !Ref RouteTablePrivateA
       SubnetId: !Ref SubnetPrivateA 
+
   SubnetRouteTableAssociatePrivateB: # Associates the subnet with a route table - passed via parameter
     Type: "AWS::EC2::SubnetRouteTableAssociation"
     Properties:

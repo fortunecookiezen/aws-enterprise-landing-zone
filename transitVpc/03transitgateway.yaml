@@ -1,6 +1,10 @@
+---
 AWSTemplateFormatVersion: '2010-09-09'
 Description: "Transit gateway and route table CloudFormation template"
 Parameters:
+  vpcid:
+    Description: "VPC Id"
+    Type: AWS::EC2::VPC::Id
   privatesubneta:
     Type: String
   privatesubnetb:
@@ -14,6 +18,11 @@ Resources:
       DefaultRouteTablePropagation: "enable"
       DnsSupport: "enable"
       VpnEcmpSupport: "enable"
+      Tags:
+        -
+          Key: "Name"
+          Value: "transitgw"
+
   TransitGatewayAttachment:
     Type: "AWS::EC2::TransitGatewayAttachment"
     Properties:
@@ -21,7 +30,12 @@ Resources:
         - !Ref privatesubneta
         - !Ref privatesubnetb
       TransitGatewayId: !Ref TransitGateway
-      VpcId: !ImportValue transitvpc-vpcid
+      VpcId: !Ref vpcid
+      Tags:
+        -
+          Key: "Name"
+          Value: "transitgwAttachment"
+
 Outputs:
   transitgatewayid:
     Description: ID of Shared Infrastructure VPC

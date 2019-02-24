@@ -5,6 +5,7 @@ Parameters:
     Type: String
     Description: "URL of S3 bucket that project files are hosted in."
     Default: "https://s3.amazonaws.com/fortunecookiezen-stack-templates-us-east-1"
+
 Resources:
   TransitVpcStack:
     Type: AWS::CloudFormation::Stack
@@ -12,6 +13,7 @@ Resources:
       TemplateURL: !Join ["", [!Ref "S3BucketURL", "/common/01vpc.yaml"]]
       Parameters:
         vpccidr: "10.15.0.0/22"
+
   TransitSubnetStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -22,6 +24,16 @@ Resources:
         publicbcidr: "10.15.0.128/25"
         privateacidr: "10.15.2.0/24"
         privatebcidr: "10.15.3.0/24"
+
+  TransitGatewayStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ["", [!Ref "S3BucketURL", "/transitVpc/03transitgateway.yaml"]]
+      Parameters:
+        vpcid: !GetAtt ["TransitVpcStack", "Outputs.VpcId"]
+        privatesubneta: !GetAtt ["TransitSubnetStack", "Outputs.privatesubneta"]
+        privatesubnetb: !GetAtt ["TransitSubnetStack", "Outputs.privatesubnetb"]
+
 Outputs:
   TransitVpcStack:
     Value: !Ref TransitVpcStack
