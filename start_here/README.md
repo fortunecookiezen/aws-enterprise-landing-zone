@@ -1,4 +1,5 @@
 # Start here
+
 ## Instructions for executing or building this environment from scratch
 
 1. Create some kind of host to run these scripts from. I shudder at the idea of laptops bootstrapping
@@ -7,5 +8,6 @@ public clouds, but it's a *thing*
 3. Clone the bootstrap.sh file and edit it for your own environment
 
 ## To Do
+
 * ~Create cft to build initial S3 bucket to host templates~
 * Create cli examples of how to bootstrap the process
