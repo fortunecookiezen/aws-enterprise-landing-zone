@@ -13,8 +13,8 @@ Parameters:
     Type: String
     MinLength: 3
     MaxLength: 4
-    Description: "ASI Prefix for buckets"
-    AllowedPattern: "[a-zA-Z][a-zA-Z0-9-]*"
+    Description: "ASI Prefix for buckets - must be lower-case, limit 4 characters"
+    AllowedPattern: "[a-z]*"
 
 Resources:
   VPC:
@@ -69,6 +69,7 @@ Resources:
         -
           Key: "ManagedBy"
           Value: !Ref AWS::StackName
+
   VPCDefaultSecurityGroupIngress:
     Type: "AWS::EC2::SecurityGroupIngress"
     Properties:
@@ -98,7 +99,7 @@ Resources:
       Tags:
         -
           Key: "Name"
-          Value: "use me"
+          Value: "tgw-sg"
 
 
 Outputs:
