@@ -8,7 +8,10 @@
 cli=`which aws`
 
 # 1. Create S3 bucket to hold template files:
-# $cli --profile factory cloudformation create-stack --stack-name bootstrap --template-body S3.yaml --enable-termination-protection
+# $cli --profile factory cloudformation create-stack --region $region --stack-name bootstrap --template-body file://S3.yaml --enable-termination-protection
 
-# $cli --profile sharedservices cloudformation create-stack --stack-name transitvpc --template-body ../transitVpcNestedStack.yaml --enable-termination-protection
-# $cli --profile development cloudformation create-stack --stack-name tenantvpc --template-body ../tenantVpcNestedStack.yaml --enable-termination-protection
+# $cli --profile sharedservices cloudformation create-stack --region $region --stack-name transitvpc --template-body file://../transitVpcNestedStack.yaml --enable-termination-protection
+# $cli --profile development cloudformation create-stack --region $region --stack-name tenantvpc --template-body file://../tenantVpcNestedStack.yaml --enable-termination-protection
+
+# for these commands to work, a parameter file named for the stack file 
+# must also be created.
