@@ -1,0 +1,21 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo Installing cfn-lint
+      - pip install cfn-lint
+  pre_build:
+    commands:
+      - echo Nothing to do in the pre-build phase...
+  build:
+    commands:
+      - echo Build started on `date`
+      - cfn-lint --template ./*.yaml -i W
+      - cfn-lint --template common/*.yaml -i W
+      - cfn-lint --template start_here/*.yaml -i W
+      - cfn-lint --template tenantVpc/*.yaml -i W
+      - cfn-lint --template transitVpc/*.yaml -i W
+  post_build:
+    commands:
+      - echo Build completed on `date`
