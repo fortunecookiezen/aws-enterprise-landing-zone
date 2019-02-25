@@ -6,6 +6,6 @@ install:
 script:
   - cfn-lint -i W -t ./*.yaml
   - cfn-lint -i W -t common/*.yaml
-  - cfn-lint -i W -t start_here/*
+  - cfn-lint -i W -t start_here/*.yaml
   - cfn-lint -i W -t tenantVpc/*.yaml
   - cfn-lint -i W -t transitVpc/*.yaml
