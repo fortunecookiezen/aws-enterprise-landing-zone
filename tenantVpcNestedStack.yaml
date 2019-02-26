@@ -10,8 +10,18 @@ Parameters:
     MinLength: 3
     MaxLength: 4
     Description: "ASI Prefix for buckets"
-    AllowedPattern: "[a-zA-Z][a-zA-Z0-9-]*"
-    Default: "TNT"
+    AllowedPattern: "[a-z-]*"
+    Default: "tnt"
+  vpccidr:
+    Type: String
+  appacidr:
+    Type: String
+  appbcidr:
+    Type: String
+  privateacidr:
+    Type: String
+  privatebcidr:
+    Type: String
 
 Resources:
   TenantVpcStack:
@@ -19,7 +29,7 @@ Resources:
     Properties:
       TemplateURL: !Join ["", [!Ref "S3BucketURL", "/common/01vpc.yaml"]]
       Parameters:
-        vpccidr: "10.15.4.0/22"
+        vpccidr: !Ref vpccidr
         ASI: !Ref ASI
   TenantSubnetStack:
     Type: AWS::CloudFormation::Stack
@@ -27,10 +37,10 @@ Resources:
       TemplateURL: !Join ["", [!Ref "S3BucketURL", "/tenantVpc/02tenantsubnets.yaml"]]
       Parameters:
         vpcid: !GetAtt ["TenantVpcStack", "Outputs.VpcId"]
-        appacidr: "10.15.4.0/24"
-        appbcidr: "10.15.5.0/24"
-        privateacidr: "10.15.6.0/24"
-        privatebcidr: "10.15.7.0/24"
+        appacidr: !Ref appacidr
+        appbcidr: !Ref appbcidr
+        privateacidr: !Ref privateacidr
+        privatebcidr: !Ref privatebcidr
 Outputs:
   TenantVpcStack:
     Value: !Ref TenantVpcStack
