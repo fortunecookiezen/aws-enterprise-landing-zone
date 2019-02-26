@@ -10,8 +10,18 @@ Parameters:
     MinLength: 3
     MaxLength: 4
     Description: "ASI Prefix for buckets"
-    AllowedPattern: "[a-zA-Z][a-zA-Z0-9-]*"
-    Default: "TRST"
+    AllowedPattern: "[a-z-]*"
+    Default: "trst"
+  vpccidr:
+    Type: String
+  publicacidr:
+    Type: String
+  publicbcidr:
+    Type: String
+  privateacidr:
+    Type: String
+  privatebcidr:
+    Type: String
 
 Resources:
   TransitVpcStack:
@@ -19,7 +29,7 @@ Resources:
     Properties:
       TemplateURL: !Join ["", [!Ref "S3BucketURL", "/common/01vpc.yaml"]]
       Parameters:
-        vpccidr: "10.15.0.0/22"
+        vpccidr: !Ref vpccidr
         ASI: !Ref ASI
 
   TransitSubnetStack:
@@ -28,10 +38,10 @@ Resources:
       TemplateURL: !Join ["", [!Ref "S3BucketURL", "/transitVpc/02transitsubnets.yaml"]]
       Parameters:
         vpcid: !GetAtt ["TransitVpcStack", "Outputs.VpcId"]
-        publicacidr: "10.15.0.0/25"
-        publicbcidr: "10.15.0.128/25"
-        privateacidr: "10.15.2.0/24"
-        privatebcidr: "10.15.3.0/24"
+        publicacidr: !Ref publicacidr
+        publicbcidr: !Ref publicbcidr
+        privateacidr: !Ref privateacidr
+        privatebcidr: !Ref privatebcidr
 
   TransitGatewayStack:
     Type: AWS::CloudFormation::Stack
