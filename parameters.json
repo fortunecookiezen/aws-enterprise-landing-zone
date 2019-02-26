@@ -1,0 +1,31 @@
+[
+    {
+        "ParameterKey": "S3BucketURL",
+        "ParameterValue": "https://s3.amazonaws.com/fortunecookiezen-stack-templates-us-east-1"
+    }
+    {
+        "ParameterKey": "ASI",
+        "ParameterValue": "fcz"
+    }
+    {
+        "ParameterKey": "vpccidr",
+        "ParameterValue": "10.15.8.0/22"
+    }
+    {
+        "ParameterKey": "appacidr",
+        "ParameterValue": "10.15.8.0/24"
+    }
+    {
+        "ParameterKey": "appbcidr",
+        "ParameterValue": "10.15.9.0/24"
+    }
+    {
+        "ParameterKey": "privateacidr",
+        "ParameterValue": "10.15.10.0/24"
+    }
+    {
+        "ParameterKey": "privatebcidr",
+        "ParameterValue": "10.15.11.0/24"
+    }
+
+]
