@@ -158,7 +158,7 @@ Resources:
       Tags:
         -
           Key: "Name"
-          Value: "private-a"
+          Value: "private-a-sn"
 
   SubnetPrivateB: # Private Subnet for App Env in AZ - B
     Type: "AWS::EC2::Subnet"
@@ -170,7 +170,7 @@ Resources:
       Tags:
         -
           Key: "Name"
-          Value: "private-b"
+          Value: "private-b-sn"
 
   SubnetRouteTableAssociatePrivateA: # Associates the subnet with a route table - passed via parameter
     Type: "AWS::EC2::SubnetRouteTableAssociation"
