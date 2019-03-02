@@ -13,7 +13,13 @@ Parameters:
     Type: String
     MinLength: 3
     MaxLength: 4
-    Description: "ASI Prefix for buckets - must be lower-case, limit 4 characters"
+    Description: "asi Prefix for buckets - must be lower-case, limit 4 characters"
+    AllowedPattern: "[a-z]*"
+  Environment:
+    Type: String
+    MinLength: 3
+    MaxLength: 4
+    Description: "environment (dev|cat|prod) - must be lower-case, limit 4 characters"
     AllowedPattern: "[a-z]*"
 
 Resources:
@@ -29,6 +35,13 @@ Resources:
           - '-'
           - -  !Ref AWS::Region
             -  vpc
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+
   S3LogBucket:
     DeletionPolicy: Delete
     Type: "AWS::S3::Bucket"
@@ -79,27 +92,27 @@ Resources:
       FromPort: -1
       CidrIp: 10.0.0.0/8
 
-  SG:
-    Type: "AWS::EC2::SecurityGroup"
-    Properties:
-      GroupName: !Ref "AWS::StackName"
-      GroupDescription: !Join ["", ["Stack ", !Ref "AWS::StackId", " VPC SecurityGroup"]]
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        -
-          CidrIp: 10.0.0.0/8
-          IpProtocol: "-1"
-          ToPort: -1
-          FromPort: -1
-      SecurityGroupEgress:
-        -
-          CidrIp: 0.0.0.0/0
-          ToPort: -1
-          IpProtocol: "-1"
-      Tags:
-        -
-          Key: "Name"
-          Value: "tgw-sg"
+#  SG:
+#  Type: "AWS::EC2::SecurityGroup"
+#    Properties:
+#      GroupName: !Ref "AWS::StackName"
+#      GroupDescription: !Join ["", ["Stack ", !Ref "AWS::StackId", " VPC SecurityGroup"]]
+#      VpcId: !Ref VPC
+#      SecurityGroupIngress:
+#        -
+#          CidrIp: 10.0.0.0/8
+#          IpProtocol: "-1"
+#          ToPort: -1
+#          FromPort: -1
+#      SecurityGroupEgress:
+#        -
+#          CidrIp: 0.0.0.0/0
+#          ToPort: -1
+#          IpProtocol: "-1"
+#      Tags:
+#        -
+#          Key: "Name"
+#          Value: "tgw-sg"
 
 
 Outputs:
@@ -109,12 +122,12 @@ Outputs:
     Export: # added to export
       Name: VpcId
   logbucketurl:
-    Description: Shared Infrastructure App Bucket
+    Description: Account Log Bucket
     Value: !GetAtt S3LogBucket.DomainName
     Export: # added to export
       Name: logbucketurl
   objectbucketurl:
-    Description: Shared Infrastructure App Bucket
+    Description: Account Deployment Bucket
     Value: !GetAtt S3ObjectBucket.DomainName
     Export: # added to export
       Name: objectbucketurl
