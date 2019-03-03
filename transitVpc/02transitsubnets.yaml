@@ -1,6 +1,23 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: "Public subnet intrastructure CloudFormation template"
 Parameters:
+  ASI:
+    Type: String
+    MinLength: 3
+    MaxLength: 4
+    Description: "asi - must be lower-case, limit 4 characters"
+    AllowedPattern: "[a-z]*"
+  Environment:
+    Type: String
+    MinLength: 3
+    MaxLength: 4
+    Description: "environment (dev|itg|cat|prod) - must be lower-case, limit 4 characters"
+    AllowedPattern: "[a-z]*"
+  Owner:
+    Type: String
+    Description: "email address of the the Owner of this stack"
+    Default: "admin@root.com"
+    AllowedPattern: "^[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
   vpcid:
     Description: "VPC Id"
     Type: AWS::EC2::VPC::Id
@@ -35,6 +52,27 @@ Parameters:
     ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/24
     Default: 10.15.3.0/24
 
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Environment Configuration"
+        Parameters:
+        - ASI
+        - Environment
+        - Owner
+      - Label:
+          default: "Network Configuration"
+        Parameters:
+        - vpcid
+        - publicacidr
+        - publicbcidr
+        - privateacidr
+        - privatebcidr
+    ParameterLabels:
+      vpcid:
+        default: "VPC to create subnets in"
+
 Resources:
   IGW:
     Type: "AWS::EC2::InternetGateway"
@@ -53,7 +91,16 @@ Resources:
       Tags:
         -
           Key: "Name"
-          Value: "public-a"
+          Value: "public-a-sn"
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
 
   PublicSubnetB:
     Type: "AWS::EC2::Subnet"
@@ -65,7 +112,16 @@ Resources:
       Tags:
         -
           Key: "Name"
-          Value: "public-b"
+          Value: "public-b-sn"
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
 
   SubnetRouteTableAssociatePublicA:
     Type: "AWS::EC2::SubnetRouteTableAssociation"
@@ -105,16 +161,55 @@ Resources:
     Type: "AWS::EC2::RouteTable"
     Properties:
       VpcId: !Ref vpcid
+      Tags:
+        -
+          Key: "Name"
+          Value: "public-b-sn"
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
 
   RouteTablePrivateA:
     Type: "AWS::EC2::RouteTable"
     Properties:
       VpcId: !Ref vpcid
+      Tags:
+        -
+          Key: "Name"
+          Value: "public-b-sn"
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
 
   RouteTablePrivateB:
     Type: "AWS::EC2::RouteTable"
     Properties:
       VpcId: !Ref vpcid
+      Tags:
+        -
+          Key: "Name"
+          Value: "public-b-sn"
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
 
   EIPNatGWA:
     DependsOn: GatewayAttach
@@ -137,6 +232,15 @@ Resources:
         -
           Key: "Name"
           Value: "natgw-a"
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
 
   NatGatewayB:
     Type: "AWS::EC2::NatGateway"
@@ -147,6 +251,15 @@ Resources:
         -
           Key: "Name"
           Value: "natgw-b"
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
 
   SubnetPrivateA: # Private Subnet for App Env in AZ - A
     Type: "AWS::EC2::Subnet"
@@ -159,6 +272,15 @@ Resources:
         -
           Key: "Name"
           Value: "private-a-sn"
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
 
   SubnetPrivateB: # Private Subnet for App Env in AZ - B
     Type: "AWS::EC2::Subnet"
@@ -171,6 +293,15 @@ Resources:
         -
           Key: "Name"
           Value: "private-b-sn"
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
 
   SubnetRouteTableAssociatePrivateA: # Associates the subnet with a route table - passed via parameter
     Type: "AWS::EC2::SubnetRouteTableAssociation"
