@@ -24,4 +24,4 @@ Transit VPC to host the public subnets, we can better manage the attack surface 
 
 * create security groups for the subnet access control
 * create a parameter for the public subnets in the transit vpc in other accounts
-* refine the tgw cft to create tgw routes and route associations
+* ~refine the tgw cft to create tgw routes and route associations~
