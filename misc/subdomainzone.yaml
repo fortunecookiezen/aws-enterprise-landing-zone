@@ -1,0 +1,68 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "private dns hosted zone"
+Parameters:
+  vpcid: 
+    Type: AWS::EC2::VPC::Id
+    Description: "vpc"
+  subdomain:
+    Type: String
+    Description: "subdomain resources will be created in"
+    AllowedPattern: "^[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
+  awsregion:
+    Type: String
+    Description: "must match vpc region"
+    AllowedValues:
+      - "us-east-1"
+      - "us-west-2"
+  ASI:
+    Type: String
+    MinLength: 3
+    MaxLength: 4
+    Description: "asi - must be lower-case, limit 4 characters"
+    AllowedPattern: "[a-z]*"
+  Environment:
+    Type: String
+    MinLength: 3
+    MaxLength: 4
+    Description: "environment (dev|itg|cat|prod)"
+    AllowedValues:
+      - "dev"
+      - "itg"
+      - "cat"
+      - "prod"
+  Owner:
+    Type: String
+    Description: "email address of the the Owner of this stack"
+    Default: "admin@root.com"
+    AllowedPattern: "^[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
+
+Resources:
+  Zone: 
+    Type: "AWS::Route53::HostedZone"
+    Properties: 
+      HostedZoneConfig: 
+        Comment: !Join [".", ["zone file for ", !Ref Environment, !Ref ASI, !Ref subdomain]]
+      Name: !Join [".", [!Ref Environment, !Ref ASI, !Ref subdomain]]
+      VPCs: 
+        - 
+          VPCId: !Ref vpcid
+          VPCRegion: !Ref awsregion
+      HostedZoneTags: 
+        - 
+          Key: "Project"
+          Value: !Ref ASI
+        - 
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+
+Outputs:
+  zoneid:
+    Description: Hosted Zone ID
+    Value: !Ref Zone
+    Export:
+      Name: subdomainzoneid
+    
