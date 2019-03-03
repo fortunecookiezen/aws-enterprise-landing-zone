@@ -3,15 +3,15 @@ Description: "Public subnet intrastructure CloudFormation template"
 Parameters:
   ASI:
     Type: String
-    MinLength: 3
+    MinLength: 2
     MaxLength: 4
     Description: "asi - must be lower-case, limit 4 characters"
     AllowedPattern: "[a-z]*"
   Environment:
     Type: String
     MinLength: 3
-    MaxLength: 4
-    Description: "environment (dev|itg|cat|prod) - must be lower-case, limit 4 characters"
+    MaxLength: 7
+    Description: "environment (nonprod|prod) - must be lower-case, limit 7 characters"
     AllowedPattern: "[a-z]*"
   Owner:
     Type: String

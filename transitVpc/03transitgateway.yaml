@@ -2,6 +2,23 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: "Transit gateway and route table CloudFormation template"
 Parameters:
+  ASI:
+    Type: String
+    MinLength: 2
+    MaxLength: 4
+    Description: "asi - must be lower-case, limit 4 characters"
+    AllowedPattern: "[a-z]*"
+  Environment:
+    Type: String
+    MinLength: 3
+    MaxLength: 7
+    Description: "environment (nonprod|prod) - must be lower-case, limit 7 characters"
+    AllowedPattern: "[a-z]*"
+  Owner:
+    Type: String
+    Description: "email address of the the Owner of this stack"
+    Default: "admin@root.com"
+    AllowedPattern: "^[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
   vpcid:
     Description: "VPC Id"
     Type: AWS::EC2::VPC::Id
@@ -9,6 +26,26 @@ Parameters:
     Type: String
   privatesubnetb:
     Type: String
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Environment Configuration"
+        Parameters:
+        - ASI
+        - Environment
+        - Owner
+      - Label:
+          default: "Network Configuration"
+        Parameters:
+        - vpcid
+        - privatesubneta
+        - privatesubnetb
+    ParameterLabels:
+      vpcid:
+        default: "VPC to create transitgateway in"
+
 Resources:
   TransitGateway:
     Type: "AWS::EC2::TransitGateway"
@@ -21,7 +58,13 @@ Resources:
       Tags:
         -
           Key: "Name"
-          Value: "transitgw"
+          Value: !Join ["-", [!Ref ASI, !Ref Environment, "tgw"]]
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
 
   TransitGatewayAttachment:
     Type: "AWS::EC2::TransitGatewayAttachment"
@@ -35,10 +78,16 @@ Resources:
         -
           Key: "Name"
           Value: "transitgwAttachment"
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
 
 Outputs:
   transitgatewayid:
-    Description: ID of Shared Infrastructure VPC
+    Description: ID of TransitGateway
     Value: !Ref TransitGateway
     Export: # added to export
       Name: transitgatewayid
