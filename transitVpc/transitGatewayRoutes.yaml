@@ -1,0 +1,17 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Creates Default Route for Transit Gateway"
+Parameters:
+  TgwAttachmentId:
+    Type: String
+
+  TgwRouteTableId:
+    Type: String
+
+Resources:
+  TransitGatewayDefaultRoute:
+    Type: "AWS::EC2::TransitGatewayRoute"
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      TransitGatewayAttachmentId: !Ref TgwAttachmentId
+      TransitGatewayRouteTableId: !Ref TgwRouteTableId
