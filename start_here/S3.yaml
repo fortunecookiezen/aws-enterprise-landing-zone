@@ -3,16 +3,46 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: "S3 Bucket to hold CloudFormation templates for infrastructure creation. Run
 this template first, then upload the CloudFormation templates to this bucket based on the
 repository structure"
-Resources:
 
+Parameters:
+  ASI:
+    Type: String
+    MinLength: 3
+    MaxLength: 4
+    Description: "asi - must be lower-case, limit 4 characters"
+    AllowedPattern: "[a-z]*"
+  Environment:
+    Type: String
+    MinLength: 3
+    MaxLength: 7
+    Description: "environment (nonprod|dev|itg|cat|prod) - must be lower-case, limit 7 characters"
+    AllowedPattern: "[a-z]*"
+  Owner:
+    Type: String
+    Description: "email address of the the Owner of this stack"
+    Default: "admin@root.com"
+    AllowedPattern: "^[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Environment Configuration"
+        Parameters:
+        - ASI
+        - Environment
+        - Owner
+
+Resources:
   S3TemplateBucket:
     DeletionPolicy: Retain
     Type: "AWS::S3::Bucket"
     Properties:
       BucketName: !Join
       - '-'
-      - -  !Ref AWS::AccountId 
-        -  !Ref AWS::Region
+      - -  !Ref ASI
+        -  !Ref Environment
+        -  !Ref 'AWS::Region'
         -  templatebucket
       AccessControl: Private
       BucketEncryption:
@@ -34,7 +64,8 @@ Resources:
         Statement: 
           - 
             Action: 
-              - "s3:GetObject"
+              - 's3:GetObject'
+              - 's3:GetObjectAcl'
             Effect: "Allow"
             Resource: 
               Fn::Join: 
@@ -46,8 +77,8 @@ Resources:
                   - "/*"
             Principal:
               AWS: 
-              - "418441809434"
-              - "659937892861"
+              - 'edit_me'
+              - 'edit_me'
 
 Outputs:
   templatebucketurl:
