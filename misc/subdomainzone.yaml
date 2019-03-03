@@ -2,19 +2,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: "private dns hosted zone"
 Parameters:
-  vpcid: 
-    Type: AWS::EC2::VPC::Id
-    Description: "vpc"
-  subdomain:
-    Type: String
-    Description: "subdomain resources will be created in"
-    AllowedPattern: "^[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
-  awsregion:
-    Type: String
-    Description: "must match vpc region"
-    AllowedValues:
-      - "us-east-1"
-      - "us-west-2"
   ASI:
     Type: String
     MinLength: 3
@@ -36,6 +23,38 @@ Parameters:
     Description: "email address of the the Owner of this stack"
     Default: "admin@root.com"
     AllowedPattern: "^[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
+  vpcid: 
+    Type: AWS::EC2::VPC::Id
+    Description: "vpc"
+  subdomain:
+    Type: String
+    Description: "subdomain resources will be created in"
+    AllowedPattern: "^[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
+  awsregion:
+    Type: String
+    Description: "must match vpc region"
+    AllowedValues:
+      - "us-east-1"
+      - "us-west-2"
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Environment Configuration"
+        Parameters:
+        - ASI
+        - Environment
+        - Owner
+      - Label:
+          default: "Network Configuration"
+        Parameters:
+        - vpcid
+        - subdomain
+        - awsregion
+    ParameterLabels:
+      vpcid:
+        default: "VPC to create hosted zone in"
 
 Resources:
   Zone: 
