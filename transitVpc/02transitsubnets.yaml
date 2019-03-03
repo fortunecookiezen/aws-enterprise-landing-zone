@@ -76,11 +76,27 @@ Metadata:
 Resources:
   IGW:
     Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub "${ASI}-${Environment}-igw"
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+
   GatewayAttach:
     Type: "AWS::EC2::VPCGatewayAttachment"
     Properties:
       InternetGatewayId: !Ref IGW
       VpcId: !Ref vpcid
+
   PublicSubnetA:
     Type: "AWS::EC2::Subnet"
     Properties:

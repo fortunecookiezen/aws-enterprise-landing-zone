@@ -19,13 +19,6 @@ Parameters:
     Description: "email address of the the Owner of this stack"
     Default: "admin@root.com"
     AllowedPattern: "^[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
-  vpcid:
-    Description: "VPC Id"
-    Type: AWS::EC2::VPC::Id
-  privatesubneta:
-    Type: String
-  privatesubnetb:
-    Type: String
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -36,15 +29,6 @@ Metadata:
         - ASI
         - Environment
         - Owner
-      - Label:
-          default: "Network Configuration"
-        Parameters:
-        - vpcid
-        - privatesubneta
-        - privatesubnetb
-    ParameterLabels:
-      vpcid:
-        default: "VPC to create transitgateway in"
 
 Resources:
   TransitGateway:
@@ -70,14 +54,14 @@ Resources:
     Type: "AWS::EC2::TransitGatewayAttachment"
     Properties:
       SubnetIds:
-        - !Ref privatesubneta
-        - !Ref privatesubnetb
+        - !ImportValue privatesubneta
+        - !ImportValue privatesubnetb
       TransitGatewayId: !Ref TransitGateway
-      VpcId: !Ref vpcid
+      VpcId: !ImportValue VpcId
       Tags:
         -
           Key: "Name"
-          Value: "transitgwAttachment"
+          Value: !Join ["-", [!Ref ASI, !Ref Environment, "tga"]]
         -
           Key: "Environment"
           Value: !Ref Environment
