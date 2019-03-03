@@ -13,6 +13,7 @@ phases:
       - echo Build started on `date`
       - cfn-lint --template ./*.yaml -i W
       - cfn-lint --template common/*.yaml -i W
+      - cfn-lint --template misc/*.yaml -i W
       - cfn-lint --template start_here/*.yaml -i W
       - cfn-lint --template tenantVpc/*.yaml -i W
       - cfn-lint --template transitVpc/*.yaml -i W
