@@ -19,7 +19,9 @@ Transit VPC to host the public subnets, we can better manage the attack surface 
 ### ready to create Tenant VPC
 ## Post creation steps
 1. Ensure transit gateway resource is shared (there should be an api call here or something)
-2. Create outbound resolver rule if needed for services zone - post/10transitServiceResolver.yaml
+2. Manually add summary routes to public and private route tables pointing at the transit gateway,
+at least until AWS adds this to CloudFormation.
+3. Create outbound resolver rule if needed for services zone - post/10transitServiceResolver.yaml
 ## To Do
 
 * create security groups for the subnet access control
