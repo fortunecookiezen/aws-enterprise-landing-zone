@@ -180,7 +180,7 @@ Resources:
       Tags:
         -
           Key: "Name"
-          Value: "public-b-sn"
+          Value: "public-rt"
         -
           Key: "Project"
           Value: !Ref ASI
@@ -198,7 +198,7 @@ Resources:
       Tags:
         -
           Key: "Name"
-          Value: "public-b-sn"
+          Value: "public-a-rt"
         -
           Key: "Project"
           Value: !Ref ASI
@@ -216,7 +216,7 @@ Resources:
       Tags:
         -
           Key: "Name"
-          Value: "public-b-sn"
+          Value: "public-b-rt"
         -
           Key: "Project"
           Value: !Ref ASI
