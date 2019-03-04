@@ -1,27 +1,80 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
+Description: "Creates tenantvpc with 2 private subnets"
 Parameters:
   S3BucketURL:
     Type: String
     Description: "URL of S3 bucket that project files are hosted in."
-    Default: "https://s3.amazonaws.com/fortunecookiezen-stack-templates-us-east-1"
+    Default: ""
+  awsregion:
+    Type: String
+    Description: "must match vpc region"
+    AllowedValues:
+      - "us-east-1"
+      - "us-west-2"
+  DaysforLogsRetention:
+    Description: Specifies the number of days you want to retain log events
+    Type: Number
+    Default: 14
+    AllowedValues:
+      - 1
+      - 3
+      - 5
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+      - 120
+      - 150
+      - 180
+      - 365
+      - 400
+      - 545
+      - 731
+      - 1827
+      - 3653
+  TypeOfTraffic:
+    Description: The type of traffic to log.
+    Type: String
+    Default: REJECT
+    AllowedValues:
+      - ACCEPT
+      - REJECT
+      - ALL
   ASI:
     Type: String
     MinLength: 3
     MaxLength: 4
-    Description: "ASI Prefix for buckets"
-    AllowedPattern: "[a-z-]*"
-    Default: "tnt"
+    Description: "asi - must be lower-case, limit 4 characters"
+    AllowedPattern: "[a-z]*"
+  Environment:
+    Type: String
+    MinLength: 3
+    MaxLength: 4
+    Description: "environment (dev|itg|cat|prod)"
+    AllowedValues:
+      - "dev"
+      - "itg"
+      - "cat"
+      - "prod"
+  Owner:
+    Type: String
+    Description: "email address of the the Owner of this stack"
+    Default: "admin@root.com"
+    AllowedPattern: "^[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
   vpccidr:
-    Type: String
-  appacidr:
-    Type: String
-  appbcidr:
     Type: String
   privateacidr:
     Type: String
   privatebcidr:
     Type: String
+  transitGatewayId:
+    Type: String
+    Description: "transit gateway id to attach to"    
+  transitgatewayname:
+    Type: String
+    Description: "name of transit gateway"
 
 Resources:
   TenantVpcStack:
@@ -31,16 +84,50 @@ Resources:
       Parameters:
         vpccidr: !Ref vpccidr
         ASI: !Ref ASI
+        Environment: !Ref Environment
+        Owner: !Ref Owner
+
+  VpcFlowLogs:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ["", [!Ref "S3BucketURL", "/common/02enableVpcFlowLogs.yaml"]]
+      Parameters:
+        vpcid: !GetAtt ["TenantVpcStack", "Outputs.VpcId"]
+        DaysforLogsRetention: !Ref DaysforLogsRetention
+        TypeOfTraffic: !Ref TypeOfTraffic
+
   TenantSubnetStack:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Join ["", [!Ref "S3BucketURL", "/tenantVpc/02tenantsubnets.yaml"]]
       Parameters:
         vpcid: !GetAtt ["TenantVpcStack", "Outputs.VpcId"]
-        appacidr: !Ref appacidr
-        appbcidr: !Ref appbcidr
         privateacidr: !Ref privateacidr
         privatebcidr: !Ref privatebcidr
+        transitGatewayId: !Ref transitGatewayId
+        transitgatewayname: !Ref transitgatewayname
+        ASI: !Ref ASI
+        Environment: !Ref Environment
+        Owner: !Ref Owner
+
+  EnableCiStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ["", [!Ref "S3BucketURL", "/tenantVpc/03EnableCi.yaml"]]
+
+  ServiceZoneStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ["", [!Ref "S3BucketURL", "/tenantVpc/04serviceZone.yaml"]]
+      Parameters:
+        vpcid: !GetAtt ["TenantVpcStack", "Outputs.VpcId"]
+        privatesubneta: !GetAtt ["TenantSubnetStack", "Outputs.privatesubneta"]
+        privatesubnetb: !GetAtt ["TenantSubnetStack", "Outputs.privatesubnetb"]
+        awsregion: !Ref awsregion
+        ASI: !Ref ASI
+        Environment: !Ref Environment
+        Owner: !Ref Owner
+                
 Outputs:
   TenantVpcStack:
     Value: !Ref TenantVpcStack

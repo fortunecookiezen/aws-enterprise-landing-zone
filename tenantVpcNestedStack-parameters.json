@@ -1,0 +1,50 @@
+[
+    {
+        "ParameterKey": "S3BucketURL",
+        "ParameterValue": "https://s3-us-west-2.amazonaws.com/019560164653-us-west-2-templatebucket"
+    }
+    {
+        "ParameterKey": "ASI",
+        "ParameterValue": "ebp"
+    }
+    {
+        "ParameterKey": "Environment",
+        "ParameterValue": "itg"
+    }
+    {
+        "ParameterKey": "Owner",
+        "ParameterValue": "aws.administrators@mutualofomaha.com"
+    }
+    {
+        "ParameterKey": "DaysforLogsRetention",
+        "ParameterValue": "14"
+    }
+    {
+        "ParameterKey": "TypeOfTraffic",
+        "ParameterValue": "REJECT"
+    }
+    {
+        "ParameterKey": "awsregion",
+        "ParameterValue": "us-west-2"
+    }
+    {
+        "ParameterKey": "transitGatewayId",
+        "ParameterValue": "tgw-0f9fd616cb893b27e"
+    }
+    {
+        "ParameterKey": "transitgatewayname",
+        "ParameterValue": "ss-nonprod"
+    }
+    {
+        "ParameterKey": "vpccidr",
+        "ParameterValue": "10.203.8.0/22"
+    }
+    {
+        "ParameterKey": "privateacidr",
+        "ParameterValue": "10.203.8.0/23"
+    }
+    {
+        "ParameterKey": "privatebcidr",
+        "ParameterValue": "10.203.10.0/23"
+    }
+]
