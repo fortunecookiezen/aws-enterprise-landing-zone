@@ -1,0 +1,772 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: "Enables CI/CD processes"
+Resources:
+
+# TODO: Once regional template is applied, sync all files between this bucket and regional one.  Then delete from this one. 
+# Future template change will remove this bucket
+  DeploymentFilesS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'deployment-files-${AWS::AccountId}'
+# TODO: End remove this resource after migration
+
+# 0. S3 Bucket policy for creating deployment buckets and reading/writing deployment files
+  S3DeploymentFilesWritePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: S3DeploymentFilesWrite
+      Description: Allows for the writing of the AutoDeploymentFiles S3 Bucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: 
+              - s3:PutObject
+              - s3:PutObjectTagging
+            Resource: 'arn:aws:s3:::deployment-files-*/*'
+
+  S3DeploymentFilesReadPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: S3DeploymentFilesRead
+      Description: Allows for the reading of the AutoDeploymentFiles S3 Bucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:GetObjectTagging
+              - s3:ListBucket
+            Resource: 'arn:aws:s3:::deployment-files-*'
+          - Effect: Allow
+            Action:
+              - s3:ListAllMyBuckets
+              - s3:HeadBucket
+            Resource: '*'
+
+# 1. Policies needed for role running the template deployment
+
+  PolicyDeploymentExecutionChangeSets:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudFormationExecutionChangeSets
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - cloudformation:CreateChangeSet
+              - cloudformation:ExecuteChangeSet
+            Resource: '*'
+      Roles:
+        - !Ref DeploymentExecutionRole
+
+  DeploymentExecutionIAMPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: CloudFormationExecutionIAM
+      Description: Allows for the deployment execution to create policy/roles and pass roles to other resources to run as
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - iam:GetRole
+              - iam:PassRole
+              - iam:CreateRole
+              - iam:DeleteRole
+              - iam:UpdateRole
+              - iam:GetPolicy
+              - iam:CreatePolicy
+              - iam:DeletePolicy
+              - iam:PutRolePolicy
+              - iam:DeleteRolePolicy
+              - iam:AttachRolePolicy
+              - iam:DetachRolePolicy
+              - iam:ListPolicyVersions
+              - iam:CreatePolicyVersion
+              - iam:DeletePolicyVersion
+            Resource:
+              - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/*'
+              - !Sub 'arn:aws:iam::${AWS::AccountId}:role/*'
+
+  PolicyDeploymentExecutionLambda:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudFormationExecutionLambda
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - lambda:CreateFunction
+              - lambda:TagResource
+              - lambda:ListVersionsByFunction
+              - lambda:GetFunctionConfiguration
+              - lambda:CreateEventSourceMapping
+              - lambda:UntagResource
+              - lambda:PutFunctionConcurrency
+              - lambda:ListTags
+              - lambda:DeleteFunction
+              - lambda:GetAlias
+              - lambda:UpdateEventSourceMapping
+              - lambda:ListFunctions
+              - lambda:GetEventSourceMapping
+              - lambda:GetFunction
+              - lambda:ListAliases
+              - lambda:UpdateFunctionConfiguration
+              - lambda:UpdateAlias
+              - lambda:UpdateFunctionCode
+              - lambda:AddPermission
+              - lambda:ListEventSourceMappings
+              - lambda:DeleteAlias
+              - lambda:PublishVersion
+              - lambda:DeleteFunctionConcurrency
+              - lambda:DeleteEventSourceMapping
+              - lambda:RemovePermission
+              - lambda:GetPolicy
+              - lambda:CreateAlias
+            Resource: '*'
+      Roles:
+        - !Ref DeploymentExecutionRole
+
+  PolicyDeploymentExecutionDynamoDB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudFormationExecutionDynamoDB
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:CreateTable 
+              - dynamodb:UpdateTimeToLive
+              - dynamodb:DescribeTable
+              - dynamodb:RestoreTableFromBackup
+              - dynamodb:RestoreTableToPointInTime
+              - dynamodb:DescribeContinuousBackups
+              - dynamodb:CreateBackup
+              - dynamodb:DeleteTable
+              - dynamodb:UpdateTable
+              - dynamodb:UpdateContinuousBackups
+            Resource: arn:aws:dynamodb:*:*:table/*
+          - Effect: Allow
+            Action:
+              - dynamodb:GetShardIterator
+              - dynamodb:RestoreTableFromBackup
+              - dynamodb:DescribeStream
+              - dynamodb:DescribeBackup
+              - dynamodb:DeleteBackup
+            Resource: arn:aws:dynamodb:*:*:table/*
+          - Effect: Allow
+            Action:
+              - dynamodb:TagResource
+              - dynamodb:UntagResource
+              - dynamodb:ListTables
+              - dynamodb:DescribeReservedCapacity
+              - dynamodb:ListTagsOfResource
+              - dynamodb:DescribeTimeToLive
+              - dynamodb:DescribeLimits
+              - dynamodb:ListStreams
+            Resource: '*'
+      Roles:
+        - !Ref DeploymentExecutionRole
+
+  PolicyDeploymentExecutionEC2:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudFormationExecutionEC2
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - ec2:DescribeSubnets
+              - ec2:DescribeSecurityGroups
+              - ec2:DescribeVpcs
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DescribeAccountAttributes
+            Resource: '*'
+      Roles:
+        - !Ref DeploymentExecutionRole
+
+  PolicyDeploymentExecutionS3:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudFormationExecutionS3
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:CreateBucket
+              - s3:DeleteBucket
+              - s3:DeleteBucketWebsite
+              - s3:PutAccelerateConfiguration
+              - s3:PutAnalyticsConfiguration
+              - s3:PutBucketCORS
+              - s3:PutBucketLogging
+              - s3:PutBucketNotification
+              - s3:PutBucketRequestPayment
+              - s3:PutBucketTagging
+              - s3:PutBucketVersioning
+              - s3:PutBucketWebsite
+              - s3:PutEncryptionConfiguration
+              - s3:PutInventoryConfiguration
+              - s3:PutIpConfiguration
+              - s3:PutLifecycleConfiguration
+              - s3:PutMetricsConfiguration
+              - s3:PutReplicationConfiguration
+              - s3:PutBucketAcl
+              - s3:PutBucketPolicy
+              - s3:DeleteBucketPolicy
+            Resource: '*'
+      Roles:
+        - !Ref DeploymentExecutionRole
+
+  PolicyDeploymentExecutionAPIGateway:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudFormationExecutionAPIGateway
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: apigateway:*
+            Resource: '*'
+      Roles:
+        - !Ref DeploymentExecutionRole
+
+  PolicyDeploymentExecutionRDS:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudFormationExecutionRDS
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: 
+              - rds:CreateDBInstance
+              - rds:DeleteDBInstance
+              - rds:ModifyDBInstance
+              - rds:StartDBInstance
+              - rds:StopDBInstance
+              - rds:RebootDBInstance
+              - rds:DescribeDBInstances
+            Resource: '*'
+      Roles:
+        - !Ref DeploymentExecutionRole
+
+  PolicyDeploymentExecutionServiceRole:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudFormationExecutionServiceLinking
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: 
+              - iam:CreateServiceLinkedRole
+              - iam:DeleteServiceLinkedRole
+              - iam:GetServiceLinkedRoleDeletionStatus
+            Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:role/aws-service-role/rds.amazonaws.com/*'
+      Roles:
+        - !Ref DeploymentExecutionRole
+
+  PolicyDeploymentExecutionKinesis:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudFormationExecutionKinesis
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: 
+              - kinesis:CreateStream
+              - kinesis:DeleteStream
+            Resource: !Sub 'arn:aws:kinesis:*:${AWS::AccountId}:stream/*'
+      Roles:
+        - !Ref DeploymentExecutionRole
+
+  PolicyDeploymentExecutionCloudWatch:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudFormationExecutionCloudWatch
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - cloudwatch:DescribeAlarms
+              - cloudwatch:PutMetricAlarm
+              - cloudwatch:DeleteAlarms
+              - cloudwatch:GetDashboard
+              - cloudwatch:ListDashboards
+              - cloudwatch:PutDashboard
+              - cloudwatch:DeleteDashboards
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - events:ListRules
+              - events:DescribeRule
+              - events:PutRule
+              - events:DeleteRule
+              - events:EnableRule
+              - events:DisableRule
+              - events:PutTargets
+              - events:RemoveTargets
+              - events:ListTargetsByRule
+              - events:ListRuleNamesByTarget
+            Resource: !Sub 'arn:aws:events:*:${AWS::AccountId}:rule/*'
+          - Effect: Allow
+            Action:
+              - logs:DescribeLogGroups
+              - logs:DeleteLogGroup
+            Resource: !Sub 'arn:aws:logs:*:${AWS::AccountId}:log-group:*'
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+            Resource: '*'
+      Roles:
+        - !Ref DeploymentExecutionRole
+
+  PolicyDeploymentExecutionECS:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudFormationExecutionECS
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - ecs:RegisterTaskDefinition
+              - ecs:DeregisterTaskDefinition
+              - ecs:DescribeTaskDefinition
+              - ecs:ListTaskDefinitions
+              - ecs:CreateCluster
+              - ecs:ListClusters
+              - ecs:CreateService
+              - ecs:DeleteService
+              - ecs:UpdateService
+              - ecs:DescribeServices
+              - ecs:ListServices
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - ecs:DeleteCluster
+              - ecs:DescribeClusters
+            Resource: !Sub 'arn:aws:ecs:*:${AWS::AccountId}:cluster/*'
+      Roles:
+        - !Ref DeploymentExecutionRole
+
+  PolicyDeploymentExecutionLoadBalancing:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudFormationExecutionLoadBalancing
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - elasticloadbalancing:DescribeTargetGroups
+              - elasticloadbalancing:DescribeRules
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - elasticloadbalancing:CreateTargetGroup
+              - elasticloadbalancing:ModifyTargetGroup
+              - elasticloadbalancing:DeleteTargetGroup
+              - elasticloadbalancing:ModifyTargetGroupAttributes
+            Resource: !Sub 'arn:aws:elasticloadbalancing:*:${AWS::AccountId}:targetgroup/*'
+          - Effect: Allow
+            Action:
+              - elasticloadbalancing:CreateRule
+            Resource: !Sub 'arn:aws:elasticloadbalancing:*:${AWS::AccountId}:listener/*'
+          - Effect: Allow
+            Action:
+              - elasticloadbalancing:DeleteRule
+              - elasticloadbalancing:ModifyRule
+              - elasticloadbalancing:SetRulePriorities
+            Resource: !Sub 'arn:aws:elasticloadbalancing:*:${AWS::AccountId}:listener-rule/app/*'
+      Roles:
+        - !Ref DeploymentExecutionRole
+
+  PolicyDeploymentExecutionKMS:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudFormationExecutionKMS
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - kms:CreateKey
+              - kms:ListAliases
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - kms:DescribeKey
+              - kms:EnableKey
+              - kms:DisableKey
+              - kms:ListKeyPolicies
+              - kms:GetKeyPolicy
+              - kms:PutKeyPolicy
+              - kms:EnableKeyRotation
+              - kms:DisableKeyRotation
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+              - kms:TagResource
+              - kms:UntagResource
+              - kms:UpdateKeyDescription
+              - kms:CreateAlias
+              - kms:UpdateAlias
+              - kms:DeleteAlias
+            Resource: !Sub 'arn:aws:kms:*:${AWS::AccountId}:key/*'
+          - Effect: Allow
+            Action:
+              - kms:CreateAlias
+              - kms:UpdateAlias
+              - kms:DeleteAlias
+            Resource: !Sub 'arn:aws:kms:*:${AWS::AccountId}:alias/*'
+      Roles:
+        - !Ref DeploymentExecutionRole
+
+#  PolicyDeploymentExecutionBeanstalk:
+#    Type: AWS::IAM::Policy
+#    Properties:
+#      PolicyName: CloudFormationExecutionBeanstalk
+#      PolicyDocument:
+#        Version: "2012-10-17"
+#        Statement:
+#          - Effect: Allow
+#            Action:
+#              - elasticbeanstalk:DescribeApplications
+#              - elasticbeanstalk:DescribeApplicationVersions
+#              - elasticbeanstalk:DescribeEnvironments
+#              - elasticbeanstalk:ListPlatformVersions
+#              - elasticbeanstalk:CheckDNSAvailability
+#            Resource: '*'
+#          - Effect: Allow
+#            Action:
+#              - elasticbeanstalk:CreateApplication
+#              - elasticbeanstalk:CreateApplicationVersion
+#              - elasticbeanstalk:CreateEnvironment
+#              - elasticbeanstalk:CreatePlatformVersion
+#              - elasticbeanstalk:CreateStorageLocation
+#              - elasticbeanstalk:
+#              - elasticbeanstalk:
+#              - elasticbeanstalk:
+#              - elasticbeanstalk:
+#              - elasticbeanstalk:
+#              - elasticbeanstalk:
+#            Resource: !Sub 'arn:aws:elasticbeanstalk:*:${AWS::AccountId}:*'
+#      Roles:
+#        - !Ref DeploymentExecutionRole
+
+
+
+
+# 2. Role used for template deployment, is assigned policies from 1.
+
+  DeploymentExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CI-CD-Deployment-Execution
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - cloudformation.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: '/'
+      ManagedPolicyArns:
+        - !Ref DeploymentExecutionIAMPolicy
+        - !Ref S3DeploymentFilesReadPolicy
+      Policies:
+        - PolicyName: 'block-updating-yourself'
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Deny
+                Action:
+                  - 'iam:CreateRole'
+                  - 'iam:CreateServiceLinkedRole'
+                  - 'iam:UpdateRole'
+                  - 'iam:UpdateRoleDescription'
+                  - 'iam:PutRolePolicy'
+                  - 'iam:AttachRolePolicy'
+                  - 'iam:PutRolePermissionsBoundary'
+                  - 'iam:UpdateAssumeRolePolicy'
+                Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:role/CI-CD-Deployment-Execution'
+
+# 3. Policies needed for deployment user/group initiating the deployment
+
+  DeploymentCloudFormationPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: CI-CD-Deployment-CloudFormation
+      Description: Allows the deployment user to manage stacks and change sets
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - cloudformation:DescribeStackEvents
+              - cloudformation:DeleteStack
+              - cloudformation:CreateChangeSet
+              - cloudformation:DescribeChangeSet
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:DeleteChangeSet
+              - cloudformation:DescribeStacks
+              - cloudformation:DescribeStackResources
+            Resource: '*'
+
+  DeploymentIAMPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: CI-CD-Deployment-IAM
+      Description: Allows the deployment user to resolve roles by name
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: iam:GetRole
+            Resource: '*'
+
+  DeploymentPassRolePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: CI-CD-Deployment-PassRole
+      Description: Allows the deployment user to pass cloudformation a role to run as to execute change set
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: iam:PassRole
+            Resource: !GetAtt DeploymentExecutionRole.Arn
+
+  DeploymentApiPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: CI-CD-Deployment-ApiGateway
+      Description: Allows the deployment user to deploy APIs
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: apigateway:POST
+            Resource: 'arn:aws:apigateway:*::/restapis/*/deployments'
+
+  DeploymentLexPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: CI-CD-Deployment-Lex
+      Description: Allows the deployment user to deploy LexBots
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - lex:GetBot
+              - lex:GetBotAliases
+              - lex:GetBotVersions
+              - lex:PutBot
+              - lex:CreateBotVersion
+              - lex:GetBotAlias
+              - lex:PutBotAlias
+              - lex:DeleteBotAlias
+              - lex:GetIntent
+              - lex:PutIntent
+              - lex:GetIntentVersions
+              - lex:GetSlotTypeVersions
+              - lex:CreateSlotTypeVersion
+              - lex:GetSlotType
+              - lex:PutSlotType
+              - lex:PostText
+            Resource:
+              - !Sub 'arn:aws:lex:*:${AWS::AccountId}:bot:*:*'
+              - !Sub 'arn:aws:lex:*:${AWS::AccountId}:intent:*:*'
+              - !Sub 'arn:aws:lex:*:${AWS::AccountId}:slottype:*:*'
+
+  DeploymentSTSPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: CI-CD-Deployment-STS
+      Description: Allows the deployment user to get info about itself
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:GetCallerIdentity
+            Resource: '*'
+
+  DeploymentECRPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: CI-CD-Deployment-ECR
+      Description: Allows the deployment user to managed container images in the containers registry
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - ecr:GetAuthorizationToken
+              - ecr:CreateRepository
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - ecr:ListImages
+              - ecr:DescribeRepositories
+              - ecr:DescribeImages
+              - ecr:BatchDeleteImage
+              - ecr:CompleteLayerUpload
+              - ecr:InitiateLayerUpload
+              - ecr:UploadLayerPart
+              - ecr:PutImage
+              - ecr:PutLifecyclePolicy
+              - ecr:BatchCheckLayerAvailability
+            Resource: !Sub 'arn:aws:ecr:*:${AWS::AccountId}:repository/*'
+
+  DeploymentLambdaPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: CI-CD-Deployment-Lambda
+      Description: Allows the deployment user to interface with lambda
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - lambda:ListAliases
+              - lambda:ListVersionsByFunction
+              - lambda:GetAlias
+              - lambda:CreateAlias
+              - lambda:DeleteAlias
+              - lambda:UpdateAlias
+              - lambda:PublishVersion
+            Resource: !Sub 'arn:aws:lambda:*:${AWS::AccountId}:function:*'
+
+# 4. Deployment Group and User that are assigned policies from 3.  IAM credentials will need to be generated for user
+
+  DeploymentGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: CI-CD-Deployment
+      Path: '/'
+      ManagedPolicyArns:
+        - !Ref DeploymentCloudFormationPolicy
+        - !Ref DeploymentIAMPolicy
+        - !Ref DeploymentPassRolePolicy
+        - !Ref DeploymentApiPolicy
+        - !Ref DeploymentLexPolicy
+        - !Ref DeploymentSTSPolicy
+        - !Ref DeploymentECRPolicy
+        - !Ref DeploymentLambdaPolicy
+        - !Ref S3DeploymentFilesReadPolicy
+        - !Ref S3DeploymentFilesWritePolicy
+
+  DeploymentUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: deployer
+      Path: '/'
+      Groups:
+        - !Ref DeploymentGroup
+
+  RegionalTemplateStackSetAdminRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CICDDeploymentStackSetAdminRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: RegionaltemplateStackSetAssumeRole
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sts:AssumeRole
+                Resource:
+                  - !GetAtt RegionalTemplateStackSetRole.Arn
+
+  RegionalTemplateStackSetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CICDDeploymentStackSetRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                - !Ref AWS::AccountId
+            Action:
+              - sts:AssumeRole
+      Path: '/'
+      Policies:
+        - PolicyName: 'RegionalDeploymentBucketPolicy'
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                  - cloudformation:CreateStack
+                  - cloudformation:UpdateStack
+                Resource: !Sub 'arn:aws:cloudformation:*:${AWS::AccountId}:stack/StackSet-regional-*'
+              - Effect: Allow
+                Action: 
+                  - 'sns:*'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:HeadBucket
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:GetAccelerateConfiguration
+                  - s3:PutAccelerateConfiguration
+                  - s3:GetAnalyticsConfiguration
+                  - s3:PutAnalyticsConfiguration
+                  - s3:GetBucketCORS
+                  - s3:PutBucketCORS
+                  - s3:GetBucketLogging
+                  - s3:PutBucketLogging
+                  - s3:GetBucketNotification
+                  - s3:PutBucketNotification
+                  - s3:GetBucketTagging
+                  - s3:PutBucketTagging
+                  - s3:GetBucketVersioning
+                  - s3:PutBucketVersioning
+                  - s3:GetBucketWebsite
+                  - s3:PutBucketWebsite
+                  - s3:GetEncryptionConfiguration
+                  - s3:PutEncryptionConfiguration
+                  - s3:GetInventoryConfiguration
+                  - s3:PutInventoryConfiguration
+                  - s3:GetIpConfiguration
+                  - s3:PutIpConfiguration
+                  - s3:GetLifecycleConfiguration
+                  - s3:PutLifecycleConfiguration
+                  - s3:GetMetricsConfiguration
+                  - s3:PutMetricsConfiguration
+                  - s3:GetReplicationConfiguration
+                  - s3:PutReplicationConfiguration
+                  - s3:DeleteBucketPolicy
+                  - s3:PutBucketPolicy
+                  - s3:PutBucketAcl
+                Resource: 'arn:aws:s3:::deployment-files-*'
+
