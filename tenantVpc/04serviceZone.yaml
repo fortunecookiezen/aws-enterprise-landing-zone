@@ -5,6 +5,10 @@ Parameters:
   vpcid: 
     Type: AWS::EC2::VPC::Id
     Description: "vpc"
+  privatesubneta:
+    Type: AWS::EC2::Subnet::Id
+  privatesubnetb:
+    Type: AWS::EC2::Subnet::Id 
   awsregion:
     Type: String
     Description: "must match vpc region"
@@ -60,8 +64,8 @@ Resources:
     Properties:
       Direction: "INBOUND"
       IpAddresses: 
-        - SubnetId: !ImportValue privatesubneta
-        - SubnetId: !ImportValue privatesubnetb
+        - SubnetId: !Ref privatesubneta
+        - SubnetId: !Ref privatesubnetb
       Name: !Join [" ", [!Ref Environment, !Ref ASI, "inbound resolver"]]
       SecurityGroupIds: 
         - !Ref DnsSecurityGroup
