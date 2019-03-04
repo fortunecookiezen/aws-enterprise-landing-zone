@@ -1,0 +1,72 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  ASI:
+    Type: String
+    MinLength: 3
+    MaxLength: 4
+    Description: "asi - must be lower-case, limit 4 characters"
+    AllowedPattern: "[a-z]*"
+  Environment:
+    Type: String
+    MinLength: 3
+    MaxLength: 4
+    Description: "environment (dev|itg|cat|prod) - must be lower-case, limit 4 characters"
+    AllowedPattern: "[a-z]*"
+  Owner:
+    Type: String
+    Description: "email address of the the Owner of this stack"
+    Default: "admin@root.com"
+    AllowedPattern: "^[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
+  vpcid: 
+    Type: AWS::EC2::VPC::Id
+    Description: "vpc"
+  transitGatewayId:
+    Type: String
+    Description: "transit gateway id to attach to"
+  transitgatewayname:
+    Type: String
+    Description: "transit gateway name"
+  subnetids:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: "subnets to joint to tgw"
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Environment Configuration"
+        Parameters:
+        - ASI
+        - Environment
+        - Owner
+      - Label:
+          default: "Network Configuration"
+        Parameters:
+        - vpcid
+        - transitGatewayId
+        - transitgatewayname
+        - subnetids
+    ParameterLabels:
+      vpcid:
+        default: "VPC to create subnets in"
+
+Resources:
+  TransitGatewayAttachment:
+    Type: "AWS::EC2::TransitGatewayAttachment"
+    Properties:
+      SubnetIds: !Ref subnetids
+      Tags: 
+        - Key: "Name"
+          Value: !Ref transitgatewayname
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+      TransitGatewayId: !Ref transitGatewayId
+      VpcId: !Ref vpcid
