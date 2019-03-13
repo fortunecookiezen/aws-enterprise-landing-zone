@@ -159,19 +159,19 @@ Resources:
       GatewayId: !Ref IGW
       RouteTableId: !Ref RouteTablePublic
 
-  RouteDefaultPrivateA:
-    Type: "AWS::EC2::Route"
-    Properties:
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGatewayA
-      RouteTableId: !Ref RouteTablePrivateA
+#  RouteDefaultPrivateA:
+#    Type: "AWS::EC2::Route"
+#    Properties:
+#      DestinationCidrBlock: 0.0.0.0/0
+#      NatGatewayId: !Ref NatGatewayA
+#      RouteTableId: !Ref RouteTablePrivateA
 
-  RouteDefaultPrivateB:
-    Type: "AWS::EC2::Route"
-    Properties:
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGatewayB
-      RouteTableId: !Ref RouteTablePrivateB
+#  RouteDefaultPrivateB:
+#    Type: "AWS::EC2::Route"
+#    Properties:
+#      DestinationCidrBlock: 0.0.0.0/0
+#      NatGatewayId: !Ref NatGatewayB
+#      RouteTableId: !Ref RouteTablePrivateB
 
   RouteTablePublic:
     Type: "AWS::EC2::RouteTable"
@@ -227,56 +227,56 @@ Resources:
           Key: "Owner"
           Value: !Ref Owner
 
-  EIPNatGWA:
-    DependsOn: GatewayAttach
-    Type: "AWS::EC2::EIP"
-    Properties:
-      Domain: vpc
+#  EIPNatGWA:
+#    DependsOn: GatewayAttach
+#    Type: "AWS::EC2::EIP"
+#    Properties:
+#      Domain: vpc
+#
+#  EIPNatGWB:
+#    DependsOn: GatewayAttach
+#    Type: "AWS::EC2::EIP"
+#    Properties:
+#      Domain: vpc
 
-  EIPNatGWB:
-    DependsOn: GatewayAttach
-    Type: "AWS::EC2::EIP"
-    Properties:
-      Domain: vpc
-
-  NatGatewayA:
-    Type: "AWS::EC2::NatGateway"
-    Properties:
-      AllocationId: !GetAtt EIPNatGWA.AllocationId
-      SubnetId: !Ref PublicSubnetA
-      Tags:
-        -
-          Key: "Name"
-          Value: "natgw-a"
-        -
-          Key: "Project"
-          Value: !Ref ASI
-        -
-          Key: "Environment"
-          Value: !Ref Environment
-        -
-          Key: "Owner"
-          Value: !Ref Owner
-
-  NatGatewayB:
-    Type: "AWS::EC2::NatGateway"
-    Properties:
-      AllocationId: !GetAtt EIPNatGWB.AllocationId
-      SubnetId: !Ref PublicSubnetB
-      Tags:
-        -
-          Key: "Name"
-          Value: "natgw-b"
-        -
-          Key: "Project"
-          Value: !Ref ASI
-        -
-          Key: "Environment"
-          Value: !Ref Environment
-        -
-          Key: "Owner"
-          Value: !Ref Owner
-
+#  NatGatewayA:
+#    Type: "AWS::EC2::NatGateway"
+#    Properties:
+#      AllocationId: !GetAtt EIPNatGWA.AllocationId
+#      SubnetId: !Ref PublicSubnetA
+#      Tags:
+#        -
+#          Key: "Name"
+#          Value: "natgw-a"
+#        -
+#          Key: "Project"
+#          Value: !Ref ASI
+#        -
+#          Key: "Environment"
+#          Value: !Ref Environment
+#        -
+#          Key: "Owner"
+#          Value: !Ref Owner
+#
+#  NatGatewayB:
+#    Type: "AWS::EC2::NatGateway"
+#    Properties:
+#      AllocationId: !GetAtt EIPNatGWB.AllocationId
+#      SubnetId: !Ref PublicSubnetB
+#      Tags:
+#        -
+#          Key: "Name"
+#          Value: "natgw-b"
+#        -
+#          Key: "Project"
+#          Value: !Ref ASI
+#        -
+#          Key: "Environment"
+#          Value: !Ref Environment
+#        -
+#          Key: "Owner"
+#          Value: !Ref Owner
+#
   SubnetPrivateA: # Private Subnet for App Env in AZ - A
     Type: "AWS::EC2::Subnet"
     Properties:
@@ -332,12 +332,12 @@ Resources:
       SubnetId: !Ref SubnetPrivateB 
 
 Outputs:
-  natgatewayaid:
-    Description: ID of NAT Gateway A
-    Value: !Ref NatGatewayA
-  natgatewaybid:
-    Description: ID of NAT Gateway B
-    Value: !Ref NatGatewayB
+#  natgatewayaid:
+#    Description: ID of NAT Gateway A
+#    Value: !Ref NatGatewayA
+#  natgatewaybid:
+#    Description: ID of NAT Gateway B
+#    Value: !Ref NatGatewayB
   publicroutetable:
     Description: ID of Public Route Table
     Value: !Ref RouteTablePublic
