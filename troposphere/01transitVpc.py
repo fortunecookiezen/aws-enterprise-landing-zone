@@ -1,7 +1,8 @@
 from troposphere import Parameter, Output, Template
-from troposphere import Cidr, Join, GetAtt, Ref, Tags, GetAZs, Select
+from troposphere import Cidr, Join, GetAtt, Ref, Tags, GetAZs, Select, ImportValue
 from troposphere import FindInMap
 import troposphere.ec2 as ec2
+from troposphere.cloudformation import AWSCustomObject
 import boto3
 import logging
 
@@ -15,6 +16,23 @@ palo_ami_name = "PA-VM-AWS-8.0.13-8736f7a7-35b2-4e03-a8eb-6a749a987428-*"
 
 # TODO: update this... more dynamically if possible
 web_cidrs = ["192.168.0.0/24"]
+
+
+######################################
+# Lambda Helper
+
+# Custom Resource
+# TODO: add this to a local module that gets imported.
+class VpcTgwRouteLambda(AWSCustomObject):
+    resource_type = "Custom::CustomResource"
+    props = {
+        'ServiceToken': (str, True),
+        'DestinationCidrBlock': (str, True),
+        'TransitGatewayId': (str, True),
+        'RouteTableId': (str, True)
+    }
+
+
 
 #######################################
 # Parameters - Environment
@@ -87,6 +105,20 @@ ami_amzn2 = template.add_parameter(
     )
 )
 
+# Refer to lambda helpers stack (with function arns in output)
+lambda_helpers_stack = template.add_parameter(
+    Parameter(
+        "LambdaHelpersStack",
+        Description="Name of lambda Helpers CloudFormation stack",
+        Type="String",
+        MinLength=1,
+        MaxLength=255,
+        AllowedPattern="^[a-zA-Z][-a-zA-Z0-9]*$",
+        Default="stack-lambdaHelpers"
+    )
+)
+template.add_parameter_to_group(lambda_helpers_stack, group_name)
+
 #############################
 # Tags we'll apply to all resources
 
@@ -99,12 +131,13 @@ std_tags = Tags(
 ################################
 # VPC
 
-vpc = ec2.VPC(
-    "vpc",
-    CidrBlock=Ref(vpc_cidr),
-    Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "vpc"]))
+vpc = template.add_resource(
+    ec2.VPC(
+        "vpc",
+        CidrBlock=Ref(vpc_cidr),
+        Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "vpc"]))
+    )
 )
-template.add_resource(vpc)
 
 ################################
 # Subnets
@@ -116,15 +149,16 @@ az_count = 0
 for az in azs:
     subnets[az] = {}
     for zone in zones:
-        subnet = ec2.Subnet(
-            "subnet" + zone.capitalize() + az.capitalize(),
-            # Create /24 subnets (32 - 8 = 24)
-            CidrBlock=Select(count, Cidr(Ref(vpc_cidr), sn_count, 8)),
-            AvailabilityZone=Select(az_count % 2, GetAZs(Ref("AWS::Region"))),
-            VpcId=Ref(vpc),
-            Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "sn", zone, az]))
+        subnet = template.add_resource(
+            ec2.Subnet(
+                "subnet" + zone.capitalize() + az.capitalize(),
+                # Create /24 subnets (32 - 8 = 24)
+                CidrBlock=Select(count, Cidr(Ref(vpc_cidr), sn_count, 8)),
+                AvailabilityZone=Select(az_count % 2, GetAZs(Ref("AWS::Region"))),
+                VpcId=Ref(vpc),
+                Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "sn", zone, az]))
+            )
         )
-        template.add_resource(subnet)
         subnets[az][zone] = subnet
         count += 1
     az_count += 1
@@ -147,13 +181,14 @@ for zone in ["trusted", "web"]:
     subnet_ids = []
     for az in azs:
         subnet_ids.append(Ref(subnets[az][zone]))
-    tgw_attach = ec2.TransitGatewayAttachment(
-        "tgwAttach" + zone.capitalize(),
-        SubnetIds=subnet_ids,
-        TransitGatewayId=Ref(tgw),
-        VpcId=Ref(vpc)
+    tgw_attach = template.add_resource(
+        ec2.TransitGatewayAttachment(
+            "tgwAttach" + zone.capitalize(),
+            SubnetIds=subnet_ids,
+            TransitGatewayId=Ref(tgw),
+            VpcId=Ref(vpc)
+        )
     )
-    template.add_resource(tgw_attach)
 
 
 ##################################
@@ -302,14 +337,16 @@ for az in azs:
     # Route to Web Cidrs via Tgw Interface in this zone
     count = 0
     for web_cidr in web_cidrs:
-        rte = ec2.Route(
-            "PvtRoute" + str(count) + zone.capitalize() + az.capitalize(),
-            DestinationCidrBlock=web_cidr,
-            GatewayId=Ref(tgws[zone]),
-            RouteTableId=Ref(rtb),
-            DependsOn=["tgwAttach" + zone.capitalize()]
+        rte = template.add_resource(
+            VpcTgwRouteLambda(
+                "PvtRoute" + str(count) + zone.capitalize() + az.capitalize(),
+                ServiceToken=ImportValue(Join("-", [Ref(lambda_helpers_stack), "VpcTgwRouteLambdaArn"])),
+                DestinationCidrBlock=web_cidr,
+                TransitGatewayId=Ref(tgws[zone]),
+                RouteTableId=Ref(rtb),
+                DependsOn=["tgwAttach" + zone.capitalize()]
+            )
         )
-        template.add_resource(rte)
         count += 1
 
     # Associate Route Table to subnet
@@ -345,14 +382,16 @@ for az in azs:
     # Route to Private Cidrs via Palo Nic in this zone
     count = 0
     for pvt_cidr in pvt_cidrs:
-        rte = ec2.Route(
-            "PvtRoute" + str(count) + zone.capitalize() + az.capitalize(),
-            DestinationCidrBlock=pvt_cidr,
-            GatewayId=Ref(tgws[zone]),
-            RouteTableId=Ref(rtb),
-            DependsOn=["tgwAttach" + zone.capitalize()]
+        rte = template.add_resource(
+            VpcTgwRouteLambda(
+                "PvtRoute" + str(count) + zone.capitalize() + az.capitalize(),
+                ServiceToken=ImportValue(Join("-", [Ref(lambda_helpers_stack), "VpcTgwRouteLambdaArn"])),
+                DestinationCidrBlock=pvt_cidr,
+                TransitGatewayId=Ref(tgws[zone]),
+                RouteTableId=Ref(rtb),
+                DependsOn=["tgwAttach" + zone.capitalize()]
+            )
         )
-        template.add_resource(rte)
         count += 1
 
     # Associate Route Table to Subnet

@@ -5,22 +5,16 @@ OPERATION=$1
 #set -x
 set -e
 
-REGION="us-west-2"
+#TEMPLATES="./lambdaHelpers.yaml"
 TEMPLATES="$TEMPLATES ./01transitVpc.yaml"
-#TEMPLATES="$TEMPLATES common/01vpc.yaml"
-#TEMPLATES="$TEMPLATES transitVpc/02transitsubnets.yaml"
-#TEMPLATES="$TEMPLATES transitVpc/03transitgateway.yaml"
-#TEMPLATES="$TEMPLATES tenantVpc/02tenantsubnets.yaml"
 
+REGION="us-west-2"
 ASI=css
 Environment=sbx
 Owner=brian.peterson@cloudshift.cc
 vpcCidr=10.250.0.0/21
+LambdaFunctionsBucketName=css-lambda-helpers
 
-PARAMETERS="ParameterKey=ASI,ParameterValue=$ASI"
-PARAMETERS="$PARAMETERS ParameterKey=Environment,ParameterValue=$Environment"
-PARAMETERS="$PARAMETERS ParameterKey=Owner,ParameterValue=$Owner"
-PARAMETERS="$PARAMETERS ParameterKey=vpcCidr,ParameterValue=$vpcCidr"
 
 create_stackname () {
     # Returns a compliant stack name from a template file string
@@ -47,7 +41,8 @@ deploy_stack () {
                 --stack-name ${STACK_NAME}\
                 --template-body file://${TEMPLATE}\
                 --parameters ${PARAMETERS}\
-                --region ${REGION} | jq -r .StackId`
+                --region ${REGION} \
+                --capabilities CAPABILITY_NAMED_IAM | jq -r .StackId`
         fi
         sleep 5
     done
@@ -84,6 +79,14 @@ delete_stack () {
 case ${OPERATION} in
     "deploy" )
         for TEMPLATE in ${TEMPLATES}; do
+            PARAMETERS="ParameterKey=ASI,ParameterValue=$ASI"
+            PARAMETERS="${PARAMETERS} ParameterKey=Environment,ParameterValue=$Environment"
+            PARAMETERS="${PARAMETERS} ParameterKey=Owner,ParameterValue=$Owner"
+            if [[ ${TEMPLATE} == *"lambdaHelpers.yaml" ]]; then
+                PARAMETERS="${PARAMETERS} ParameterKey=LambdaFunctionsBucketName,ParameterValue=$LambdaFunctionsBucketName"
+            elif [[ ${TEMPLATE} == *"01transitVpc.yaml" ]]; then
+                PARAMETERS="${PARAMETERS} ParameterKey=vpcCidr,ParameterValue=$vpcCidr"
+            fi
             deploy_stack ${TEMPLATE} "${PARAMETERS}"
         done
         ;;
