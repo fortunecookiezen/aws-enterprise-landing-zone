@@ -55,15 +55,15 @@ owner = template.add_parameter(
 )
 template.add_parameter_to_group(owner, group_name)
 
-vpcCidr = template.add_parameter(
+vpc_cidr = template.add_parameter(
     Parameter(
-        "vpccidr",
+        "vpcCidr",
         Type="String",
         Description="Cidr Range for Transit VPC - must be /21 or larger",
         AllowedPattern='^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$'
     )
 )
-template.add_parameter_to_group(vpcCidr, group_name)
+template.add_parameter_to_group(vpc_cidr, group_name)
 
 # Build Palo Alto AMI Map for all ec2 regions starting with "us-"
 image_map = {}
@@ -101,7 +101,7 @@ std_tags = Tags(
 
 vpc = ec2.VPC(
     "vpc",
-    CidrBlock=Ref(vpcCidr),
+    CidrBlock=Ref(vpc_cidr),
     Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "vpc"]))
 )
 template.add_resource(vpc)
@@ -110,20 +110,24 @@ template.add_resource(vpc)
 # Subnets
 
 subnets = {}
-count = 1
+sn_count = len(azs) * len(zones)
+count = 0
+az_count = 0
 for az in azs:
     subnets[az] = {}
     for zone in zones:
         subnet = ec2.Subnet(
-            "sn" + zone.capitalize() + az.capitalize(),
-            CidrBlock=Cidr(Ref(vpcCidr), count, 3),
-            AvailabilityZone=Select(count % 2, GetAZs()),
+            "subnet" + zone.capitalize() + az.capitalize(),
+            # Create /24 subnets (32 - 8 = 24)
+            CidrBlock=Select(count, Cidr(Ref(vpc_cidr), sn_count, 8)),
+            AvailabilityZone=Select(az_count % 2, GetAZs(Ref("AWS::Region"))),
             VpcId=Ref(vpc),
             Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "sn", zone, az]))
         )
         template.add_resource(subnet)
         subnets[az][zone] = subnet
-        count += count
+        count += 1
+    az_count += 1
 
 ################################
 # Transit Gateways
@@ -133,7 +137,7 @@ tgws = {}
 for zone in ["trusted", "web"]:
     # Create a transit Gateway
     tgw = ec2.TransitGateway(
-        "Tgw" + zone,
+        "tgw" + zone.capitalize(),
         Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "tgw", zone]))
     )
     template.add_resource(tgw)
@@ -169,7 +173,7 @@ for az in azs:
         # UserData="", # TODO userdata for palo bootstrap
         SourceDestCheck=False,
         SubnetId=Ref(subnets[az]["trusted"]),
-        Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), zone + az + "-rt"]))
+        Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), zone, az, "rt"]))
     )
     template.add_resource(palo_inst)
     # Add an additional network interface for each zone
@@ -209,7 +213,7 @@ zone = "untrusted"
 rtb = ec2.RouteTable(
     "RouteTable" + zone.capitalize(),
     VpcId=Ref(vpc),
-    Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), zone + "-rt"]))
+    Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), zone, "rt"]))
 )
 template.add_resource(rtb)
 
@@ -240,7 +244,7 @@ for az in azs:
     rtb = ec2.RouteTable(
         "RouteTable" + zone.capitalize() + az.capitalize(),
         VpcId=Ref(vpc),
-        Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), zone + az + "-rt"]))
+        Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), zone, az, "rt"]))
     )
     template.add_resource(rtb)
 
@@ -282,7 +286,7 @@ for az in azs:
     rtb = ec2.RouteTable(
         "RouteTable" + zone.capitalize() + az.capitalize(),
         VpcId=Ref(vpc),
-        Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), zone + az + "-rt"]))
+        Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), zone, az,  "rt"]))
     )
     template.add_resource(rtb)
 
@@ -302,7 +306,8 @@ for az in azs:
             "PvtRoute" + str(count) + zone.capitalize() + az.capitalize(),
             DestinationCidrBlock=web_cidr,
             GatewayId=Ref(tgws[zone]),
-            RouteTableId=Ref(rtb)
+            RouteTableId=Ref(rtb),
+            DependsOn=["tgwAttach" + zone.capitalize()]
         )
         template.add_resource(rte)
         count += 1
@@ -324,7 +329,7 @@ for az in azs:
     rtb = ec2.RouteTable(
         "RouteTable" + zone.capitalize() + az.capitalize(),
         VpcId=Ref(vpc),
-        Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), zone + az + "-rt"]))
+        Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), zone, az, "rt"]))
     )
     template.add_resource(rtb)
 
@@ -344,7 +349,8 @@ for az in azs:
             "PvtRoute" + str(count) + zone.capitalize() + az.capitalize(),
             DestinationCidrBlock=pvt_cidr,
             GatewayId=Ref(tgws[zone]),
-            RouteTableId=Ref(rtb)
+            RouteTableId=Ref(rtb),
+            DependsOn=["tgwAttach" + zone.capitalize()]
         )
         template.add_resource(rte)
         count += 1
@@ -359,5 +365,5 @@ for az in azs:
 
 
 # Yaml doesnt like the Cidr(GetAtt(Ref(vpc), xxx), x, x) function
-#print(template.to_yaml()) # Just pipe output to | yq -y .
-print(template.to_json())
+print(template.to_yaml()) # Just pipe output to | yq -y .
+#print(template.to_json())
