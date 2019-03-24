@@ -5,6 +5,7 @@ import troposphere.ec2 as ec2
 from troposphere.cloudformation import AWSCustomObject
 import boto3
 import logging
+import sys
 
 template = Template()
 template.description = "Transit VPC with Palo Alto Firewalls"
@@ -12,10 +13,13 @@ template.description = "Transit VPC with Palo Alto Firewalls"
 azs = ("a", "b")
 zones = ("untrusted", "trusted", "webdmz", "web")
 pvt_cidrs = ['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
+#pvt_cidrs = ['10.0.0.0/8', '172.16.0.0/12', '192.169.0.0/16']
 palo_ami_name = "PA-VM-AWS-8.0.13-8736f7a7-35b2-4e03-a8eb-6a749a987428-*"
 
 # TODO: update this... more dynamically if possible
-web_cidrs = ["192.168.0.0/24"]
+#web_cidrs = ["192.168.0.0/24"]
+web_cidrs = ["192.168.1.0/24"]
+#web_cidrs.append("192.168.1.0/24")
 
 
 ######################################
@@ -31,7 +35,6 @@ class VpcTgwRouteLambda(AWSCustomObject):
         'TransitGatewayId': (str, True),
         'RouteTableId': (str, True)
     }
-
 
 
 #######################################
@@ -296,7 +299,7 @@ for az in azs:
     count = 0
     for pvt_cidr in pvt_cidrs:
         rte = ec2.Route(
-            "PvtRoute" + str(count) + zone.capitalize() + az.capitalize(),
+            "Route" + str(count) + zone.capitalize() + az.capitalize(),
             DestinationCidrBlock=pvt_cidr,
             NetworkInterfaceId=Ref(palo_nics[az][zone]),
             RouteTableId=Ref(rtb)
@@ -336,12 +339,15 @@ for az in azs:
 
     # Route to Web Cidrs via Tgw Interface in this zone
     count = 0
-    for web_cidr in web_cidrs:
+    for cidr in web_cidrs:
         rte = template.add_resource(
             VpcTgwRouteLambda(
-                "PvtRoute" + str(count) + zone.capitalize() + az.capitalize(),
+                "Route" + zone.capitalize() + az.capitalize()
+                # Include string-ified Cidr in the route resource name because there is no route_update() method in AWS.
+                # Doing this forces delete/create anytime the route's cidr changes
+                + cidr.replace('.', 'x').replace('/', 'z'),
                 ServiceToken=ImportValue(Join("-", [Ref(lambda_helpers_stack), "VpcTgwRouteLambdaArn"])),
-                DestinationCidrBlock=web_cidr,
+                DestinationCidrBlock=cidr,
                 TransitGatewayId=Ref(tgws[zone]),
                 RouteTableId=Ref(rtb),
                 DependsOn=["tgwAttach" + zone.capitalize()]
@@ -381,12 +387,15 @@ for az in azs:
 
     # Route to Private Cidrs via Palo Nic in this zone
     count = 0
-    for pvt_cidr in pvt_cidrs:
+    for cidr in pvt_cidrs:
         rte = template.add_resource(
             VpcTgwRouteLambda(
-                "PvtRoute" + str(count) + zone.capitalize() + az.capitalize(),
+                "Route" + zone.capitalize() + az.capitalize()
+                # Include Cidr in resource name because there is no route_update() method in AWS.
+                # Doing this forces delete/create every time the route's cidr changes
+                + cidr.replace('.', 'x').replace('/', 'z'),
                 ServiceToken=ImportValue(Join("-", [Ref(lambda_helpers_stack), "VpcTgwRouteLambdaArn"])),
-                DestinationCidrBlock=pvt_cidr,
+                DestinationCidrBlock=cidr,
                 TransitGatewayId=Ref(tgws[zone]),
                 RouteTableId=Ref(rtb),
                 DependsOn=["tgwAttach" + zone.capitalize()]
@@ -404,5 +413,8 @@ for az in azs:
 
 
 # Yaml doesnt like the Cidr(GetAtt(Ref(vpc), xxx), x, x) function
-print(template.to_yaml()) # Just pipe output to | yq -y .
-#print(template.to_json())
+output = template.to_yaml()
+outfile = sys.modules['__main__'].__file__.replace('.py', '.yaml')
+fh = open(outfile, 'w')
+logging.info(f"writing output to {outfile}")
+fh.write(output)
