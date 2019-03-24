@@ -3,6 +3,10 @@
 # Zips up all the .py files in the current directory into a file called lambda.zip and pushes to an s3
 # bucket specified as a single arg to this script
 
+# As of this writing, these libraries required boto3 version 1.9.120 installed in lib
+# mkdir -p lib
+# pip install boto3 botocore -t lib
+
 set -e
 BUCKET=$1
 LAMBDA_ZIP=lambda.zip
