@@ -4,7 +4,7 @@ from troposphere import GetAtt, Ref, Join
 from troposphere import Parameter, Template, Output, Tags, Export
 
 template = Template()
-template.Description = "Stack of helper lambda functions"
+template.description = "Stack of helper lambda functions"
 
 #####################################
 # PARAMETERS
@@ -98,7 +98,10 @@ lambda_role = template.add_resource(
                     "Statement": [
                         {
                             "Effect": "Allow",
-                            "Action": "ec2:CreateRoute",
+                            "Action": [
+                                "ec2:CreateRoute",
+                                "ec2:DeleteRoute"
+                                ],
                             "Resource": "*",
                         }
                     ]
