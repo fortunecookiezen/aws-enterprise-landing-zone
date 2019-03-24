@@ -27,6 +27,11 @@ fi
 
 echo "Creating lambda.zip"
 zip ${LAMBDA_ZIP} *.py
+if [[ -d lib ]]; then
+    cd lib
+    zip ..${LAMBDA_ZIP} *
+    cd ..
+fi
 
 # Upload ${LAMBDA_ZIP} to s3://${BUCKET}
 aws s3 cp ${LAMBDA_ZIP} s3://${BUCKET}

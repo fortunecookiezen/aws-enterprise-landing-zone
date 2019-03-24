@@ -3,11 +3,27 @@ This module creates an EC2 VPC route to AWS transit gateway as it is not support
 as of this writing (2019-03-22)
 https://www.reddit.com/r/aws/comments/7ad7el/cloudformation_experts_how_do_i_associate_aws/
 https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-route.html
-"""
-import boto3
-from .logger import get_console_logger
 
-logger = get_console_logger()
+Note, that as of this writing 2019-03-23, the AWS lambda execution environment runs
+boto3 version 1.7.74 
+https://docs.aws.amazon.com/lambda/latest/dg/current-supported-versions.html
+
+And that version doesnt support transitgateway vpc routes (which is the purpose of this function).
+https://boto3.amazonaws.com/v1/documentation/api/1.7.74/reference/services/ec2.html#EC2.Client.create_route
+
+But the latest version (1.9.120) does support transitgateway routes in vpc
+https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.create_route
+
+So, we have to ship own copy of boto3 in the zip file
+"""
+
+import boto3
+import cfnresponse
+import helpers
+
+from botocore.exceptions import ClientError
+
+logger = helpers.get_console_logger()
 
 
 def create_tgw_route(DestinationCidrBlock, TransitGatewayId, RouteTableId):
@@ -21,11 +37,12 @@ def create_tgw_route(DestinationCidrBlock, TransitGatewayId, RouteTableId):
     ec2client = boto3.client("ec2")
     logger.info(f"Creating Route DestinationCidrBlock: {DestinationCidrBlock}, TransitGatewayId: {TransitGatewayId} "
                 f"RouteTableId: {RouteTableId}")
-    return ec2client.create_route(
+    result = ec2client.create_route(
         DestinationCidrBlock=DestinationCidrBlock,
         TransitGatewayId=TransitGatewayId,
         RouteTableId=RouteTableId
     )
+    return result
 
 
 def delete_tgw_route(DestinationCidrBlock, RouteTableId):
@@ -35,12 +52,12 @@ def delete_tgw_route(DestinationCidrBlock, RouteTableId):
     :return: (Boolean) Returns true if the request succeeds; otherwise, it returns an error.
     """
     ec2client = boto3.client("ec2")
-    logger.info(f"Deleting Route DestinationCidrBlock: {DestinationCidrBlock}, TransitGatewayId: {TransitGatewayId} "
-                f"RouteTableId: {RouteTableId}")
-    return ec2client.delete_route(
+    logger.info(f"Deleting Route DestinationCidrBlock: {DestinationCidrBlock}, RouteTableId: {RouteTableId}")
+    result = ec2client.delete_route(
         DestinationCidrBlock=DestinationCidrBlock,
         RouteTableId=RouteTableId
     )
+    return result
 
 
 def lambda_handler(event, context):
@@ -48,26 +65,43 @@ def lambda_handler(event, context):
     logger.debug(f"context: {context}")
     logger.info(f"RequestType: {event['RequestType']}")
 
+    # CREATE
     if event['RequestType'] == 'Create':
-        return create_tgw_route(
+        result = create_tgw_route(
             DestinationCidrBlock=event['ResourceProperties']['DestinationCidrBlock'],
             TransitGatewayId=event['ResourceProperties']['TransitGatewayId'],
             RouteTableId=event['ResourceProperties']['RouteTableId']
         )
+
+    # UPDATE
     elif event['RequestType'] == 'Update':
-        delete_tgw_route(
-            DestinationCidrBlock=event['ResourceProperties']['DestinationCidrBlock'],
-            RouteTableId=event['ResourceProperties']['RouteTableId']
-        )
-        return create_tgw_route(
+        # There is no update_route method. We'll delete it, then create it.
+        try:
+            result = delete_tgw_route(
+                DestinationCidrBlock=event['ResourceProperties']['DestinationCidrBlock'],
+                RouteTableId=event['ResourceProperties']['RouteTableId']
+            )
+        except ClientError as e:
+            # If the route doesnt exist, it will throw a ClientError except. Log it and keep moving
+            logger.error(e)
+
+        result = create_tgw_route(
             DestinationCidrBlock=event['ResourceProperties']['DestinationCidrBlock'],
             TransitGatewayId=event['ResourceProperties']['TransitGatewayId'],
             RouteTableId=event['ResourceProperties']['RouteTableId']
         )
+
+    # DELETE
     elif event['RequestType'] == 'Delete':
-        return delete_tgw_route(
+        result = delete_tgw_route(
             DestinationCidrBlock=event['ResourceProperties']['DestinationCidrBlock'],
             RouteTableId=event['ResourceProperties']['RouteTableId']
         )
+
+    # Send Result back to Cloudformation
+    logger.info(f"{event['RequestType']} Route result - {result}")
+    if result['Return'] != True:
+        response = cfnresponse.FAILED
     else:
-        raise ValueError(f"Unexpected event RequestType {event['RequestType']}")
+        response = cfnresponse.SUCCESS
+    cfnresponse.send(event, context, response, result, "CustomResourcePhysicalID")
