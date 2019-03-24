@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 
 OPERATION=$1
+TEMPLATE=$2
 
 #set -x
 set -e
-
-#TEMPLATES="./lambdaHelpers.yaml"
-TEMPLATES="$TEMPLATES ./01transitVpc.yaml"
 
 REGION="us-west-2"
 ASI=css
@@ -19,7 +17,8 @@ LambdaFunctionsBucketName=css-lambda-helpers
 create_stackname () {
     # Returns a compliant stack name from a template file string
     TEMPLATE=$1
-    local STACK_NAME="stack-`echo ${TEMPLATE} | awk -F'/' '{print$2}' | awk -F'.' '{print$1}'`"
+    FILENAME=$(basename ${TEMPLATE})
+    local STACK_NAME="stack-`echo ${FILENAME} | awk -F'.' '{print$1}'`"
     echo "$STACK_NAME"
 }
 
@@ -75,25 +74,58 @@ delete_stack () {
     done
 }
 
+update_stack () {
+    # Updates a cloudformation stack
+    TEMPLATE=$1
+    PARAMETERS=$2
+    STACK_NAME=$(create_stackname ${TEMPLATE})
+    STACK_STATUS=$(get_stack_status ${STACK_NAME})
+    # until the stack is deployed (or updated), run the following loop
+    if [[ "$STACK_STATUS" == "CREATE_COMPLETE" ]] || [[ "$STACK_STATUS" == "UPDATE_COMPLETE" ]] || [[ "$STACK_STATUS" == "UPDATE_ROLLBACK_COMPLETE" ]]; then
+        STACK_STATUS=$(get_stack_status ${STACK_NAME})
+        echo "STACK_NAME: $STACK_NAME, STACK_STATUS: $STACK_STATUS"
+        echo "UPDATING STACK: $STACK_NAME"
+        STACK_ID=`aws cloudformation update-stack\
+            --stack-name ${STACK_NAME}\
+            --template-body file://${TEMPLATE}\
+            --parameters ${PARAMETERS}\
+            --region ${REGION} \
+            --capabilities CAPABILITY_NAMED_IAM | jq -r .StackId`
+        until [[ "$STACK_STATUS" == "UPDATE_IN_PROGRESS" ]]; do
+            STACK_STATUS=$(get_stack_status ${STACK_NAME})
+            echo "STACK_NAME: $STACK_NAME, STACK_STATUS: $STACK_STATUS"
+            sleep 1
+        done
+    else
+        echo "STACK not deployed. exiting"
+        exit 1
+    fi
+    until [[ "$STACK_STATUS" == "UPDATE_COMPLETE" ]] || [[ "$STACK_STATUS" == "UPDATE_ROLLBACK_COMPLETE" ]] ; do
+        STACK_STATUS=$(get_stack_status ${STACK_NAME})
+        echo "STACK_NAME: $STACK_NAME, STACK_STATUS: $STACK_STATUS"
+        sleep 5
+    done
+}
+
+
+PARAMETERS="ParameterKey=ASI,ParameterValue=$ASI"
+PARAMETERS="${PARAMETERS} ParameterKey=Environment,ParameterValue=$Environment"
+PARAMETERS="${PARAMETERS} ParameterKey=Owner,ParameterValue=$Owner"
+if [[ ${TEMPLATE} == *"lambdaHelpers.yaml" ]]; then
+    PARAMETERS="${PARAMETERS} ParameterKey=LambdaFunctionsBucketName,ParameterValue=$LambdaFunctionsBucketName"
+elif [[ ${TEMPLATE} == *"01transitVpc.yaml" ]]; then
+    PARAMETERS="${PARAMETERS} ParameterKey=vpcCidr,ParameterValue=$vpcCidr"
+fi
 
 case ${OPERATION} in
-    "deploy" )
-        for TEMPLATE in ${TEMPLATES}; do
-            PARAMETERS="ParameterKey=ASI,ParameterValue=$ASI"
-            PARAMETERS="${PARAMETERS} ParameterKey=Environment,ParameterValue=$Environment"
-            PARAMETERS="${PARAMETERS} ParameterKey=Owner,ParameterValue=$Owner"
-            if [[ ${TEMPLATE} == *"lambdaHelpers.yaml" ]]; then
-                PARAMETERS="${PARAMETERS} ParameterKey=LambdaFunctionsBucketName,ParameterValue=$LambdaFunctionsBucketName"
-            elif [[ ${TEMPLATE} == *"01transitVpc.yaml" ]]; then
-                PARAMETERS="${PARAMETERS} ParameterKey=vpcCidr,ParameterValue=$vpcCidr"
-            fi
-            deploy_stack ${TEMPLATE} "${PARAMETERS}"
-        done
+    "create" )
+        deploy_stack ${TEMPLATE} "${PARAMETERS}"
         ;;
-    "delete")
-        for TEMPLATE in ${TEMPLATES}; do
-            delete_stack ${TEMPLATE}
-        done
+    "delete" )
+        delete_stack ${TEMPLATE}
+        ;;
+    "update" )
+        update_stack ${TEMPLATE} "${PARAMETERS}"
         ;;
     *)
         echo "invalid operation: \"$OPERATION\""
