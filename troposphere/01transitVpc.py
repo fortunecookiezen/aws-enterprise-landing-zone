@@ -13,12 +13,10 @@ template.description = "Transit VPC with Palo Alto Firewalls"
 azs = ("a", "b")
 zones = ("untrusted", "trusted", "webdmz", "web")
 pvt_cidrs = ['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
-#pvt_cidrs = ['10.0.0.0/8', '172.16.0.0/12', '192.169.0.0/16']
 palo_ami_name = "PA-VM-AWS-8.0.13-8736f7a7-35b2-4e03-a8eb-6a749a987428-*"
 
 # TODO: update this... more dynamically if possible
-#web_cidrs = ["192.168.0.0/24"]
-web_cidrs = ["192.168.1.0/24"]
+web_cidrs = ["192.168.0.0/24"]
 #web_cidrs.append("192.168.1.0/24")
 
 
@@ -203,7 +201,7 @@ for az in azs:
     palo_inst = ec2.Instance(
         "paloInst" + az.capitalize(),
         ImageId=Ref(ami_amzn2),
-        InstanceType="t2.micro",
+        InstanceType="c4.xlarge",
         #ImageId=FindInMap("paloAmiMap", Ref("AWS::Region"), "AMI"),
         #InstanceType="c4.xlarge",
         # SecurityGroups="", # TODO add security group for mgt interface
@@ -215,14 +213,25 @@ for az in azs:
     )
     template.add_resource(palo_inst)
     # Add an additional network interface for each zone
+    nicIndex = 1
     for zone in zones:
-        palo_nic = ec2.NetworkInterface(
-            "paloNic" + zone.capitalize() + az.capitalize(),
-            SubnetId=Ref(subnets[az][zone]),
-            # SecurityGroups="", # TODO add security group for mgt interface
+        palo_nic = template.add_resource(
+            ec2.NetworkInterface(
+                "paloNic" + zone.capitalize() + az.capitalize(),
+                SubnetId=Ref(subnets[az][zone]),
+                # SecurityGroups="", # TODO add security group for mgt interface
+            )
         )
         palo_nics[az][zone] = palo_nic
-        template.add_resource(palo_nic)
+        pal_nic_attach = template.add_resource(
+            ec2.NetworkInterfaceAttachment(
+                "paloNicAttach" + zone.capitalize() + az.capitalize(),
+                NetworkInterfaceId=Ref(palo_nic),
+                InstanceId=Ref(palo_inst),
+                DeviceIndex=nicIndex
+            )
+        )
+        nicIndex += 1
 
 ####################################
 # Internet Gateway
@@ -412,7 +421,7 @@ for az in azs:
     template.add_resource(rtb_assoc)
 
 
-# Yaml doesnt like the Cidr(GetAtt(Ref(vpc), xxx), x, x) function
+# Create the output file
 output = template.to_yaml()
 outfile = sys.modules['__main__'].__file__.replace('.py', '.yaml')
 fh = open(outfile, 'w')
