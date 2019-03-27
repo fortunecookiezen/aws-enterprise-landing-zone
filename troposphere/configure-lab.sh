@@ -12,6 +12,8 @@ Environment=sbx
 Owner=brian.peterson@cloudshift.cc
 vpcCidr=10.250.0.0/21
 LambdaFunctionsBucketName=css-lambda-helpers
+paloBootstrapBucket=css-palo-bootstrap
+paloSshKeyName=css-ssh-keypair
 
 
 create_stackname () {
@@ -45,6 +47,7 @@ deploy_stack () {
         fi
         sleep 5
     done
+    aws cloudformation describe-stacks --stack-name ${STACK_NAME} --region ${REGION} | jq .Stacks[0].Outputs
 }
 
 get_stack_status () {
@@ -81,7 +84,9 @@ update_stack () {
     STACK_NAME=$(create_stackname ${TEMPLATE})
     STACK_STATUS=$(get_stack_status ${STACK_NAME})
     # until the stack is deployed (or updated), run the following loop
-    if [[ "$STACK_STATUS" == "CREATE_COMPLETE" ]] || [[ "$STACK_STATUS" == "UPDATE_COMPLETE" ]] || [[ "$STACK_STATUS" == "UPDATE_ROLLBACK_COMPLETE" ]]; then
+    if [[ "$STACK_STATUS" == "CREATE_COMPLETE" ]] || \
+        [[ "$STACK_STATUS" == "UPDATE_COMPLETE" ]] || \
+        [[ "$STACK_STATUS" == "UPDATE_ROLLBACK_COMPLETE" ]]; then
         STACK_STATUS=$(get_stack_status ${STACK_NAME})
         echo "STACK_NAME: $STACK_NAME, STACK_STATUS: $STACK_STATUS"
         echo "UPDATING STACK: $STACK_NAME"
@@ -105,6 +110,7 @@ update_stack () {
         echo "STACK_NAME: $STACK_NAME, STACK_STATUS: $STACK_STATUS"
         sleep 5
     done
+    aws cloudformation describe-stacks --stack-name ${STACK_NAME} --region ${REGION} | jq .Stacks[0].Outputs
 }
 
 
@@ -115,6 +121,8 @@ if [[ ${TEMPLATE} == *"lambdaHelpers.yaml" ]]; then
     PARAMETERS="${PARAMETERS} ParameterKey=LambdaFunctionsBucketName,ParameterValue=$LambdaFunctionsBucketName"
 elif [[ ${TEMPLATE} == *"01transitVpc.yaml" ]]; then
     PARAMETERS="${PARAMETERS} ParameterKey=vpcCidr,ParameterValue=$vpcCidr"
+    PARAMETERS="${PARAMETERS} ParameterKey=paloSshKeyName,ParameterValue=$paloSshKeyName"
+    PARAMETERS="${PARAMETERS} ParameterKey=paloBootstrapBucket,ParameterValue=$paloBootstrapBucket"
 fi
 
 case ${OPERATION} in
