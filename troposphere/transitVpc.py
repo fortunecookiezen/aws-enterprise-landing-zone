@@ -14,6 +14,7 @@ template.description = "Transit VPC with Palo Alto Firewalls"
 
 create_bastion = True
 azs = ["a", "b"]
+azs = ["a"]
 pvt_cidrs = ['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
 #palo_ami_name = "PA-VM-AWS-8.0.13-8736f7a7-35b2-4e03-a8eb-6a749a987428-*"
 palo_ami_name = "PA-VM-AWS-9.*.*-8736f7a7-35b2-4e03-a8eb-6a749a987428-*"
