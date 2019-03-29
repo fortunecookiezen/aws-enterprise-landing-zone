@@ -15,6 +15,9 @@ LambdaFunctionsBucketName=css-lambda-helpers
 paloBootstrapBucket=css-palo-bootstrap
 paloSshKeyName=css-ssh-keypair
 
+testCidr=192.168.1.0/24
+testZone=trusted
+
 
 create_stackname () {
     # Returns a compliant stack name from a template file string
@@ -119,10 +122,13 @@ PARAMETERS="${PARAMETERS} ParameterKey=Environment,ParameterValue=$Environment"
 PARAMETERS="${PARAMETERS} ParameterKey=Owner,ParameterValue=$Owner"
 if [[ ${TEMPLATE} == *"lambdaHelpers.yaml" ]]; then
     PARAMETERS="${PARAMETERS} ParameterKey=LambdaFunctionsBucketName,ParameterValue=$LambdaFunctionsBucketName"
-elif [[ ${TEMPLATE} == *"01transitVpc.yaml" ]]; then
+elif [[ ${TEMPLATE} == *"transitVpc.yaml" ]]; then
     PARAMETERS="${PARAMETERS} ParameterKey=vpcCidr,ParameterValue=$vpcCidr"
     PARAMETERS="${PARAMETERS} ParameterKey=paloSshKeyName,ParameterValue=$paloSshKeyName"
     PARAMETERS="${PARAMETERS} ParameterKey=paloBootstrapBucket,ParameterValue=$paloBootstrapBucket"
+elif [[ ${TEMPLATE} == *"tenantVpc.yaml" ]]; then
+    PARAMETERS="${PARAMETERS} ParameterKey=vpcCidr,ParameterValue=$testCidr"
+    PARAMETERS="${PARAMETERS} ParameterKey=securityZone,ParameterValue=$testZone"
 fi
 
 case ${OPERATION} in

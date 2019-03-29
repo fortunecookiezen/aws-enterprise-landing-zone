@@ -591,7 +591,7 @@
             </security>
             <nat>
               <rules>
-                <entry name="nat-trusted-to-dmz" uuid="cfcbb9a9-599f-4df9-b2d8-3d2b6c698a60">
+                <entry name="nat-trusted-to-dmz-all" uuid="cfcbb9a9-599f-4df9-b2d8-3d2b6c698a60">
                   <source-translation>
                     <dynamic-ip-and-port>
                       <interface-address>
@@ -612,6 +612,52 @@
                     <member>any</member>
                   </destination>
                   <service>any</service>
+                  <to-interface>ethernet1/1</to-interface>
+                </entry>
+                <entry name="nat-web-to-dmz-https" uuid="bb74547e-5a41-468d-a632-498632bf670f">
+                  <source-translation>
+                    <dynamic-ip-and-port>
+                      <interface-address>
+                        <interface>ethernet1/1</interface>
+                      </interface-address>
+                    </dynamic-ip-and-port>
+                  </source-translation>
+                  <to>
+                    <member>dmz</member>
+                  </to>
+                  <from>
+                    <member>web</member>
+                  </from>
+                  <source>
+                    <member>any</member>
+                  </source>
+                  <destination>
+                    <member>any</member>
+                  </destination>
+                  <service>service-https</service>
+                  <to-interface>ethernet1/1</to-interface>
+                </entry>
+                <entry name="nat-web-to-dmz-http" uuid="f58fc02e-0fc7-4341-8608-db2017245ec3">
+                  <source-translation>
+                    <dynamic-ip-and-port>
+                      <interface-address>
+                        <interface>ethernet1/1</interface>
+                      </interface-address>
+                    </dynamic-ip-and-port>
+                  </source-translation>
+                  <to>
+                    <member>dmz</member>
+                  </to>
+                  <from>
+                    <member>web</member>
+                  </from>
+                  <source>
+                    <member>any</member>
+                  </source>
+                  <destination>
+                    <member>any</member>
+                  </destination>
+                  <service>service-http</service>
                   <to-interface>ethernet1/1</to-interface>
                 </entry>
               </rules>

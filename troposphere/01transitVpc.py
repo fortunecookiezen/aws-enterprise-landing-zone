@@ -1,4 +1,4 @@
-from troposphere import Parameter, Output, Template
+from troposphere import Parameter, Output, Template, Export
 from troposphere import Cidr, Join, GetAtt, Ref, Tags, GetAZs, Select, ImportValue, Base64
 from troposphere import FindInMap
 import troposphere.ec2 as ec2
@@ -195,6 +195,23 @@ vpc = template.add_resource(
     )
 )
 
+####################################
+# Internet Gateway
+
+igw = ec2.InternetGateway(
+    "igw",
+    Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "igw"]))
+)
+template.add_resource(igw)
+
+# Attach Internet Gateway to VPC
+igw_attach = ec2.VPCGatewayAttachment(
+    "igwAttach",
+    InternetGatewayId=Ref(igw),
+    VpcId=Ref(vpc)
+)
+template.add_resource(igw_attach)
+
 ################################
 # Subnets
 
@@ -230,12 +247,22 @@ for az in azs:
 tgws = {}
 for zone in ["trusted", "web"]:
     # Create a transit Gateway
-    tgw = ec2.TransitGateway(
-        "tgw" + zone.capitalize(),
-        Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "tgw", zone]))
+    tgw = template.add_resource(
+        ec2.TransitGateway(
+            "tgw" + zone.capitalize(),
+            Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "tgw", zone]))
+        )
     )
-    template.add_resource(tgw)
     tgws[zone] = tgw
+
+    # Create a transit gateway route table
+    tgw_rte_tble = template.add_resource(
+        ec2.TransitGatewayRouteTable(
+            "tgwRteTable" + zone.capitalize(),
+            TransitGatewayId=Ref(tgw),
+            Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "tgwRteTbl", zone]))
+        )
+    )
 
     # Attach transit the gateway to all subnets (azs) that have this zone
     subnet_ids = []
@@ -249,6 +276,29 @@ for zone in ["trusted", "web"]:
             VpcId=Ref(vpc)
         )
     )
+
+    # Propagate network interface to route table
+    tgw_prop = template.add_resource(
+        ec2.TransitGatewayRouteTablePropagation(
+            "tgwPropagate" + zone.capitalize(),
+            TransitGatewayAttachmentId=Ref(tgw_attach),
+            TransitGatewayRouteTableId=Ref(tgw_rte_tble)
+        )
+    )
+
+    # Add a default route to the transit gateway to the palo vpc
+    tgw_route = template.add_resource(
+        ec2.TransitGatewayRoute(
+            "tgwDefaultRoute" + zone.capitalize(),
+            DestinationCidrBlock="0.0.0.0/0",
+            TransitGatewayAttachmentId=Ref(tgw_attach),
+            TransitGatewayRouteTableId=Ref(tgw_rte_tble)
+        )
+    )
+
+
+
+
 
 ###############################
 # Security Groups
@@ -422,6 +472,23 @@ for az in azs:
                     DeviceIndex=nicIndex
                 )
             )
+            if zone == "dmz":
+                # Create an elastic IP for the public interface
+                palo_eip = template.add_resource(
+                    ec2.EIP(
+                        "paloEip" + zone.capitalize() + az.capitalize(),
+                        Domain="vpc",
+                        DependsOn=igw.title
+                    )
+                )
+                # Associate the public EIP with the dmz nic
+                palo_eip_assoc = template.add_resource(
+                    ec2.EIPAssociation(
+                        "paloEipAssoc" + zone.capitalize() + az.capitalize(),
+                        AllocationId=GetAtt(palo_eip, "AllocationId"),
+                        NetworkInterfaceId=Ref(palo_nic)
+                    )
+                )
             nicIndex += 1
 
 ###################################
@@ -442,22 +509,6 @@ if create_bastion:
         )
     )
 
-####################################
-# Internet Gateway
-
-igw = ec2.InternetGateway(
-    "igw",
-    Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "igw"]))
-)
-template.add_resource(igw)
-
-# Attach Internet Gateway to VPC
-igw_attach = ec2.VPCGatewayAttachment(
-    "igwAttach",
-    InternetGatewayId=Ref(igw),
-    VpcId=Ref(vpc)
-)
-template.add_resource(igw_attach)
 
 
 #############################
@@ -691,6 +742,16 @@ for az in azs:
             "palo" + az.capitalize() + "mgtIp",
             Description="Management IP of Palo" + az.capitalize(),
             Value=GetAtt("paloInst" + az.capitalize(), "PrivateIp")
+        )
+    )
+
+for zone in ["trusted", "web"]:
+    template.add_output(
+        Output(
+            "tgwId" + zone.capitalize(),
+            Description="TransitGatewayId for security zone: " + zone,
+            Value=Ref(tgws[zone]),
+            Export=Export(Join("-", [Ref("AWS::StackName"), "tgwId", zone]))
         )
     )
 
