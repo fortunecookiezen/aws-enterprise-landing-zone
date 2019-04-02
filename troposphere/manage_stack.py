@@ -54,13 +54,13 @@ def get_stack_status(stack_name, region_name=default_region) -> str:
     except ClientError as e:
         if 'does not exist' in e.__str__():
             logging.debug(f"Stack f{stack_name} has no status. Is it deployed?")
-            return None
+            return ""
         else:
             raise e
     return result['Stacks'][0]['StackStatus']
 
 
-def stack_iscomplete(stack_name, region_name=default_region) -> bool:
+def stack_is_complete(stack_name, region_name=default_region) -> bool:
     """
     Returns true if stack is in valid state, else returns false
     :param string stack_name: Name of the stack
@@ -87,8 +87,8 @@ def get_stack_outputs(stack_name, region_name=default_region) -> list:
         result = cfn_client.describe_stacks(StackName=stack_name)
     except ClientError as e:
         if 'does not exist' in e.__str__():
-            logging.warn(f"Stack f{stack_name} has no status. Is it deployed?")
-            return None
+            logging.warning(f"Stack f{stack_name} has no status. Is it deployed?")
+            return []
         else:
             raise e
     return result['Stacks'][0]['Outputs']
@@ -106,8 +106,8 @@ def get_stack_resources(stack_name, region_name=default_region) -> list:
         result = cfn_client.describe_stack_resources(StackName=stack_name)
     except Exception as e:
         if 'does not exist' in e.__str__():
-            logging.warn(f"Stack f{stack_name} does not exits. Is it deployed?")
-            return None
+            logging.warning(f"Stack f{stack_name} does not exits. Is it deployed?")
+            return []
         else:
             raise e
     return result['StackResources']
@@ -147,25 +147,26 @@ def template_isvalid(template_body, region_name=default_region) -> bool:
         cfn_client.validate_template(TemplateBody=template_body)
     except Exception as e:
         if 'Template format error' in e.__str__():
-            logging.warn(e)
+            logging.warning(e)
             return False
         else:
             raise e
     return True
 
 
-def fmt_timedelta(tdelta):
+def fmt_timedelta(time_delta):
     """
     Formats a timedelta object into hours:minutes:seconds string
-    :param timedelta tdelta:
+    :param timedelta time_delta:
     :return: string
     """
-    hours, rem = divmod(tdelta.seconds, 3600)
+    hours, rem = divmod(time_delta.seconds, 3600)
     minutes, seconds = divmod(rem, 60)
     hours = str(hours).zfill(2)
     minutes = str(minutes).zfill(2)
     seconds = str(seconds).zfill(2)
     return f"{hours}:{minutes}:{seconds}"
+
 
 @begin.subcommand
 def apply(stack_name, module_name=None, parameter_files=None, capabilities=default_capabilities,
@@ -226,7 +227,7 @@ def apply(stack_name, module_name=None, parameter_files=None, capabilities=defau
         action = "deployed"
 
     # See if stack is already in a deployed (*_COMPLETE) status
-    elif stack_iscomplete(stack_name=stack_name, region_name=region_name):
+    elif stack_is_complete(stack_name=stack_name, region_name=region_name):
         # Stack is already deployed and ready for update
         # Generate the yaml file
         template = stack.get_template().to_yaml()
@@ -253,7 +254,7 @@ def apply(stack_name, module_name=None, parameter_files=None, capabilities=defau
                 logging.error(e)
                 return False
             else:
-                logging.warn(f"STACK NOT UPDATED. No updates required")
+                logging.warning(f"STACK NOT UPDATED. No updates required")
         action = 'updated'
 
     # Stack is in error state
@@ -262,8 +263,8 @@ def apply(stack_name, module_name=None, parameter_files=None, capabilities=defau
         return False
 
     # Wait for stack to enter complete status
-    while not stack_iscomplete(stack_name=stack_name, region_name=region_name):
-        time.sleep(10)
+    while not stack_is_complete(stack_name=stack_name, region_name=region_name):
+        time.sleep(15)
         stack_status = get_stack_status(stack_name=stack_name, region_name=region_name)
         logging.info(f"STACK: {stack_name}, Status: {stack_status} - {datetime.now().strftime('%H:%M:%S')}")
 
@@ -308,13 +309,13 @@ def plan(stack_name, module_name=None, region_name=default_region, parameter_fil
 
     # Validate the template to make sure it's valid
     if template_isvalid(template.to_yaml()):
-        logging.debug:memoryview(f"Template body is valid")
+        logging.debug(f"Template body is valid")
     else:
         logging.error(f"template body is invalid. Exiting")
         return False
 
     # See if the stack is already deployed
-    if not stack_iscomplete(stack_name=stack_name, region_name=region_name):
+    if not stack_is_complete(stack_name=stack_name, region_name=region_name):
         # Stack is not deployed yet
         logging.info(f"STACK: {stack_name} is not yet deployed")
         # If the user wants a dump of the template in json or yaml, do that then exit
@@ -406,7 +407,7 @@ def plan(stack_name, module_name=None, region_name=default_region, parameter_fil
             scope = change_set['Changes'][i]['ResourceChange']['Scope']
             logging.info(f"{i + 1}) {action} {logical_id} {resource_id} "
                          f"{resource_type} Scope:{scope} Replace:{replacement}")
-            #print(json.dumps(change_set['Changes'][i], indent=2))
+            # print(json.dumps(change_set['Changes'][i], indent=2))
         # If the user requested to delete change set (default = True)
         if delete_change_set:
             # try deleting the stack change set
@@ -454,16 +455,17 @@ def destroy(stack_name, region_name=default_region, auto_approve=False):
     except Exception as e:
         logging.error(e)
         return False
-    # Wait for deletion to complete
-    while stack_status != None:
+    # Wait for deletion to complete (when stack_status is null)
+    while stack_status:
         logging.info(f"STACK: {stack_name}, Status: {stack_status} - {datetime.now().strftime('%H:%M:%S')}")
-        time.sleep(10)
+        time.sleep(15)
         stack_status = get_stack_status(stack_name=stack_name, region_name=region_name)
     # Stop the timer
     end = datetime.now()
     duration = fmt_timedelta((end - start))
     logging.info(f"STACK: {stack_name} deleted in {duration}")
     return True
+
 
 @begin.start
 @begin.logging
@@ -472,4 +474,3 @@ def run():
     Manages troposphere stack like terraform"
     :return:
     """
-
