@@ -334,7 +334,7 @@ def plan(stack_name, module_name=None, region_name=default_region, parameter_fil
             # Go through each resource in the stack
             i = 0
             for resource in template.resources:
-                logging.info(f"{i}) Create {resource} {template.resources[resource].resource_type}")
+                logging.info(f"{i + 1}) Create {resource} {template.resources[resource].resource_type}")
                 i += 1
         # invalid output type
         else:
