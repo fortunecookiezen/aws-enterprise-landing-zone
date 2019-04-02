@@ -1,0 +1,3 @@
+vpcCidr: 10.250.0.0/21
+paloBootstrapBucket: css-sbx-palo-bootstrap
+paloSshKeyName: css-ssh-keypair

@@ -6,8 +6,11 @@ verify_ssl = true
 [dev-packages]
 
 [packages]
-troposphere = {extras = ["policy"],version = "*"}
 boto3 = "*"
+begins = "*"
+boto3-type-annotations-with-docs = "*"
+troposphere = "*"
+pyyaml = "*"
 
 [requires]
 python_version = "3.6"
