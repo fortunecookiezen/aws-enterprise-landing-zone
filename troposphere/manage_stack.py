@@ -54,7 +54,7 @@ def get_stack_status(stack_name, region_name=default_region) -> str:
     except ClientError as e:
         if 'does not exist' in e.__str__():
             logging.debug(f"Stack f{stack_name} has no status. Is it deployed?")
-            return ""
+            return None
         else:
             raise e
     return result['Stacks'][0]['StackStatus']
