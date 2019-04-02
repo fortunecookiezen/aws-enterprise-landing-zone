@@ -81,7 +81,7 @@ palo_stack = template.add_parameter(
         "paloStack",
         Type="String",
         Description="Stack Name of the deployed Palo Stack",
-        Default="stack-01transitVpc"
+        Default="stack-transitVpc",
     )
 )
 template.add_parameter_to_group(vpc_cidr, group_name)
