@@ -201,12 +201,11 @@ def apply(stack_name, module_name=None, parameter_files=None, capabilities=defau
     # See if Stack is deployed
     if stack_status is None:
         # Stack not yet deployed
-        action = "deployed"
         template = stack.get_template()
         logging.info(f"CREATING Stack: {stack_name} with {len(template.resources)} resources")
         # Check for approval
         if not auto_approve:
-            response = input("Are you sure? [yes|no]")
+            response = input("Are you sure? [yes|no] ")
             if response.lower() != "yes":
                 logging.error(f"Exiting")
                 return False
@@ -224,17 +223,17 @@ def apply(stack_name, module_name=None, parameter_files=None, capabilities=defau
         except Exception as e:
             logging.error(e)
             return False
+        action = "deployed"
 
     # See if stack is already in a deployed (*_COMPLETE) status
     elif stack_iscomplete(stack_name=stack_name, region_name=region_name):
         # Stack is already deployed and ready for update
-        action = 'updated'
         # Generate the yaml file
         template = stack.get_template().to_yaml()
         logging.info(f"UPDATING Stack: {stack_name}")
         # get approval
         if not auto_approve:
-            response = input("Are you sure? [yes|no]")
+            response = input("Are you sure? [yes|no] ")
             if response.lower() != "yes":
                 logging.error(f"Exiting")
                 return False
@@ -250,11 +249,12 @@ def apply(stack_name, module_name=None, parameter_files=None, capabilities=defau
             )
         except Exception as e:
             if 'No updates are to be performed' not in e.__str__():
-                # If this isnt a no updates required warning, bail out
+                # If this isn't a no updates required warning, bail out
                 logging.error(e)
                 return False
             else:
                 logging.warn(f"STACK NOT UPDATED. No updates required")
+        action = 'updated'
 
     # Stack is in error state
     else:
@@ -265,7 +265,7 @@ def apply(stack_name, module_name=None, parameter_files=None, capabilities=defau
     while not stack_iscomplete(stack_name=stack_name, region_name=region_name):
         time.sleep(10)
         stack_status = get_stack_status(stack_name=stack_name, region_name=region_name)
-        logging.info(f"STACK: {stack_name}, Status: {stack_status} - {datetime.now().strftime('%H:%m:%S')}")
+        logging.info(f"STACK: {stack_name}, Status: {stack_status} - {datetime.now().strftime('%H:%M:%S')}")
 
     # Stop the timer
     end = datetime.now()
@@ -349,7 +349,7 @@ def plan(stack_name, module_name=None, region_name=default_region, parameter_fil
         # Create a cfn client
         cfn_client = get_cfn_client(region_name=region_name)
         # Generate a unique change set name
-        change_set_name = 'change-' + datetime.now().strftime('%Y-%m-%d-%H-%m-%S')
+        change_set_name = 'change-' + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
         # Create a change stack set
         try:
             change_set_id = cfn_client.create_change_set(
@@ -456,7 +456,7 @@ def destroy(stack_name, region_name=default_region, auto_approve=False):
         return False
     # Wait for deletion to complete
     while stack_status != None:
-        logging.info(f"STACK: {stack_name}, Status: {stack_status} - {datetime.now().strftime('%H:%m:%S')}")
+        logging.info(f"STACK: {stack_name}, Status: {stack_status} - {datetime.now().strftime('%H:%M:%S')}")
         time.sleep(10)
         stack_status = get_stack_status(stack_name=stack_name, region_name=region_name)
     # Stop the timer
