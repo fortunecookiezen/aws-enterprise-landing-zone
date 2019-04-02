@@ -12,7 +12,7 @@ Environment=sbx
 Owner=brian.peterson@cloudshift.cc
 vpcCidr=10.250.0.0/21
 LambdaFunctionsBucketName=css-lambda-helpers
-paloBootstrapBucket=css-palo-bootstrap
+paloBootstrapBucket=css-sbx-palo-bootstrap
 paloSshKeyName=css-ssh-keypair
 
 testCidr=192.168.1.0/24
