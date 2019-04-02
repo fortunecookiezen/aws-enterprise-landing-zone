@@ -169,6 +169,61 @@ def fmt_timedelta(time_delta):
 
 
 @begin.subcommand
+def output(stack_name, region_name=default_region) -> bool:
+    """
+    Lists outputs of a cloudformation stack
+    :param string stack_name:
+    :param string region_name:
+    :return: bool True if successful
+    """
+
+    if not stack_is_complete(stack_name=stack_name, region_name=region_name):
+        logging.error(f"STACK: {stack_name} "
+                      f"in status: {get_stack_status(stack_name=stack_name, region_name=region_name)}. Exiting")
+        return False
+    logging.info("STACK OUTPUTS:")
+    for output in get_stack_outputs(stack_name=stack_name, region_name=region_name):
+        logging.info(f"{output['OutputKey']:{20}} = {output['OutputValue']}")
+
+
+@begin.subcommand
+def list_stacks(stack_name=None, region_name=default_region) -> bool:
+    """
+    Lists deployed stacks and thier status
+    :param string stack_name: optional stack name. Default is none
+    :param region_name: optional region_name. Default is default_region
+    :return:
+    """
+    cfn_client = get_cfn_client(region_name=region_name)
+    if stack_name:
+        if not stack_is_complete(stack_name=stack_name, region_name=region_name):
+            logging.error(f"STACK: {stack_name} "
+                          f"in status: {get_stack_status(stack_name=stack_name, region_name=region_name)}. Exiting")
+            return False
+        try:
+            stacks = cfn_client.describe_stacks(StackName=stack_name)
+        except Exception as e:
+            logging.error(f"unable to retrieve stack list")
+            logging.error(e)
+            return False
+    else:
+        try:
+            stacks = cfn_client.describe_stacks()
+        except Exception as e:
+            logging.error(f"unable to retrieve stack list")
+            logging.error(e)
+            return False
+    logging.info(f"{'stack_name':{20}} {'stack_status':{20}} {'drift_status':{20}} {'stack_description'}")
+    for stack in stacks['Stacks']:
+        stack_name = stack['StackName']
+        stack_status = stack['StackStatus']
+        drift_status = stack['DriftInformation']['StackDriftStatus']
+        stack_description = stack['Description']
+        logging.info(f"{stack_name:{20}} {stack_status:{20}} {drift_status:{20}} {stack_description}")
+
+    return True
+
+@begin.subcommand
 def apply(stack_name, module_name=None, parameter_files=None, capabilities=default_capabilities,
           region_name=default_region, auto_approve=False) -> bool:
     """
@@ -277,9 +332,9 @@ def apply(stack_name, module_name=None, parameter_files=None, capabilities=defau
                  f"in {duration}")
 
     # Print outputs
-    logging.info("STACK OUTPUTS:")
-    for output in get_stack_outputs(stack_name=stack_name, region_name=region_name):
-        logging.info(f"\t{output['OutputKey']} = {output['OutputValue']}")
+    output(stack_name=stack_name, region_name=region_name)
+
+    return True
 
 
 @begin.subcommand
@@ -330,11 +385,11 @@ def plan(stack_name, module_name=None, region_name=default_region, parameter_fil
         # If the user wants text output
         elif output in ['text']:
             logging.info(f"STACK: {stack_name} creates {len(template.resources)}")
-            logging.info(f"#) action logical_id resource_type")
+            logging.info(f"{'#':{2}}) {'action':{8}} {'logical_id':{25}} {'resource_type'}")
             # Go through each resource in the stack
             i = 0
             for resource in template.resources:
-                logging.info(f"{i + 1}) Create {resource} {template.resources[resource].resource_type}")
+                logging.info(f"{i + 1:{2}}) {'Create':{8}} {resource:{25}} {template.resources[resource].resource_type}")
                 i += 1
         # invalid output type
         else:
@@ -396,7 +451,8 @@ def plan(stack_name, module_name=None, region_name=default_region, parameter_fil
 
         # Ok, stack change set is complete, lets get the results
         logging.info(f"STACK: {stack_name} has {len(change_set['Changes'])} detected changes")
-        logging.info(f"#) action logical_id resource_id resource_type Replace? scope")
+        logging.info(f"{'#':{2}}) {'action':{8}} {'logical_id':{20}} {'resource_id':{25}} "
+                     f"{'resource_type':{30}} {'scope':{10}} Replace?")
         for i in range(len(change_set['Changes'])):
             # For each change item, print the details
             action = change_set['Changes'][i]['ResourceChange']['Action']
@@ -405,8 +461,8 @@ def plan(stack_name, module_name=None, region_name=default_region, parameter_fil
             resource_id = change_set['Changes'][i]['ResourceChange']['PhysicalResourceId']
             resource_type = change_set['Changes'][i]['ResourceChange']['ResourceType']
             scope = change_set['Changes'][i]['ResourceChange']['Scope']
-            logging.info(f"{i + 1}) {action} {logical_id} {resource_id} "
-                         f"{resource_type} Scope:{scope} Replace:{replacement}")
+            logging.info(f"{i + 1:{2}}) {action:{8}} {logical_id:{20}} {resource_id:{25}} "
+                     f"{resource_type:{30}} {str(scope):{10}} {replacement}")
             # print(json.dumps(change_set['Changes'][i], indent=2))
         # If the user requested to delete change set (default = True)
         if delete_change_set:
