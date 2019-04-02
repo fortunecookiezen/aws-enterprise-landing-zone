@@ -442,7 +442,7 @@ def destroy(stack_name, region_name=default_region, auto_approve=False):
     logging.info(f"DELETING STACK: {stack_name} with {resource_count} resources")
     # Get user approval
     if not auto_approve:
-        response = input("Are you sure? [yes|no]")
+        response = input("Are you sure? [yes|no] ")
         if response.lower() != "yes":
             logging.error(f"Exiting")
             return False
