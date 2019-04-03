@@ -5,11 +5,11 @@ provider "aws" {
 }
 
 ##################################
-# Palo boostrap bucket
+# Palo bootstrap bucket
 
 # Create a bucket for bootstrap files
 resource "aws_s3_bucket" "bootstrap_bucket" {
-  bucket = "${local.palo_boostrap_bucket}"
+  bucket = "${local.palo_bootstrap_bucket}"
   acl    = "private"
 
   tags = "${merge( local.default_tags, map (

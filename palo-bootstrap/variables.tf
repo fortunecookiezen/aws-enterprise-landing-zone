@@ -3,7 +3,7 @@ variable "region" {
 }
 
 locals {
-  palo_boostrap_bucket = "${var.deptName}-${var.envName}-${var.appName}-bootstap"
+  palo_bootstrap_bucket = "${var.deptName}-${var.envName}-${var.appName}-bootstrap"
 }
 
 variable "deptName" {
