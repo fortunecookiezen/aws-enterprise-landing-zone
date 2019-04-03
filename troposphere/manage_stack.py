@@ -247,6 +247,28 @@ def get_failed_stack_events(stack_name, region_name=default_region) -> list:
             result.append(event)
     return result
 
+@begin.subcommand
+def parameters(stack_name, region_name=default_region) -> bool:
+    """
+    Logs the parameters deployed with a stack
+    :param string stack_name:
+    :param string region_name:
+    :return: True
+    """
+    if not stack_is_complete(stack_name=stack_name, region_name=region_name):
+        logging.error(f"STACK: {stack_name} not in completed status. "
+                      f"{get_stack_status(stack_name=stack_name, region_name=region_name)}")
+        return False
+    cfn_client = get_cfn_client(region_name=region_name)
+    try:
+        stack = cfn_client.describe_stacks(StackName=stack_name)['Stacks'][0]
+    except Exception as e:
+        logging.error(f"unable to describe stack {stack_name}")
+        logging.error(e)
+        return False
+    logging.info(f"STACK: {stack_name} Parameters: ")
+    for parameter in stack['Parameters']:
+        logging.info(f"{parameter['ParameterKey']:{20}} = {parameter['ParameterValue']} ")
 
 @begin.subcommand
 def reason(stack_name, region_name=default_region) -> bool:
