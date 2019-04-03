@@ -399,14 +399,15 @@ def get_template():
             ),
             Policies=[
                 iam.Policy(
-                    PolicyName=Join("-", ["lambdaExecutionPolicy", Ref("AWS::StackName")]),
+                    PolicyName=Join("-", ["paloEc2Policy", Ref("AWS::StackName")]),
                     PolicyDocument=PolicyDocument(
                         Statement=[
                             Statement(
                                 Effect=Allow,
                                 Action=[
                                     Action("s3", "List*"),
-                                    Action("s3", "Get*")
+                                    Action("s3", "Get*"),
+                                    Action("s3", "Head*"),
                                 ],
                                 Resource=[
                                     Join("", ["arn:aws:s3:::", Ref(palo_bootstrap_bucket)]),
@@ -440,7 +441,6 @@ def get_template():
         palo_nics[az] = {}
         palo_inst = ec2.Instance(
             "paloInst" + az.capitalize(),
-            #ImageId=Ref(ami_amzn2),
             ImageId=FindInMap("paloAmiMap", Ref("AWS::Region"), "AMI"),
             InstanceType=Ref(palo_instance_type),
             SecurityGroupIds=[Ref(sg_palo_mgt)],
@@ -450,6 +450,16 @@ def get_template():
             IamInstanceProfile=Ref(profile_palo_inst),
             DependsOn=profile_palo_inst.title,
             SubnetId=Ref(subnets[az]["trusted"]),
+            BlockDeviceMappings=[
+                ec2.BlockDeviceMapping(
+                    DeviceName="/dev/xvda",
+                    Ebs=ec2.EBSBlockDevice(
+                        VolumeSize=60,
+                        VolumeType="gp2",
+                        DeleteOnTermination=True
+                    )
+                )
+            ],
             Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "palo", az.capitalize(), "inst"]))
         )
         template.add_resource(palo_inst)
@@ -463,6 +473,7 @@ def get_template():
                         SubnetId=Ref(subnets[az][zone]),
                         SourceDestCheck=False,
                         GroupSet=[GetAtt(sg_palo_if, "GroupId")],
+                        DependsOn=palo_inst.title,
                         Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), zone, az, "eni"]))
                     )
                 )
@@ -506,6 +517,7 @@ def get_template():
                 ImageId=Ref(ami_amzn2),
                 InstanceType='t3.micro',
                 SecurityGroupIds=[Ref(sg_bastion)],
+                IamInstanceProfile=Ref(profile_palo_inst),
                 KeyName=Ref(palo_ssh_keyname),
                 SubnetId=Ref(subnets[az][zone]),
                 Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "bastion", az.capitalize(), "inst"]))
