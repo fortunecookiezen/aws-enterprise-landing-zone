@@ -30,9 +30,9 @@ The following changes were made to create the current bootstrap.xml
 
 #### Zones
 
-* `dmz` zone - connection to internet
-* `trusted` zone - connections to corporate and internal vpcs
-* `web` zone - connections to web facing vpcs
+* `dmz` zone - connection to internet (ethernet1/1)
+* `trusted` zone - connections to corporate and internal vpcs (ethernet1/2)
+* `web` zone - connections to web facing vpcs (ethernet1/3)
 
 #### Interfaces
 
@@ -70,4 +70,4 @@ The following changes were made to create the current bootstrap.xml
 * `aws-vpn-ipsec-crypto-profile` sha1, aes-128-cbc, group2, 28800 secs
 
 #### Other
-* VM Series Cloudwatch Monitoring - enabled
+* VM Series Cloudwatch Metrics Monitoring (Device > VM-Series > AWS Cloudwatch) - enabled
