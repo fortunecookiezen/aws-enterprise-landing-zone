@@ -11,6 +11,10 @@ from botocore.exceptions import ClientError
 default_region = 'us-west-2'
 default_capabilities = 'CAPABILITY_NAMED_IAM'
 
+# Set these extra verbose loggers to INFO (event when app is in debug)
+logging.getLogger('botocore').setLevel(logging.INFO)
+logging.getLogger('urllib3').setLevel(logging.INFO)
+
 
 def create_cfn_parameters(parameters) -> list:
     """
@@ -62,15 +66,14 @@ def get_stack_status(stack_name, region_name=default_region) -> str:
 
 def stack_is_complete(stack_name, region_name=default_region) -> bool:
     """
-    Returns true if stack is in valid state, else returns false
+    Returns true if stack is in completed state, else returns false
     :param string stack_name: Name of the stack
     :param string region_name: Name of the region to perform operation
-    :return: True if is in valid state, else false
+    :return: True if is in completed state, else false
     """
-    valid_states = ['CREATE_COMPLETE', 'UPDATE_COMPLETE']
     stack_status = get_stack_status(stack_name, region_name=region_name)
-    if stack_status not in valid_states:
-        logging.debug(f"STACK: {stack_name} status: {stack_status} is not valid")
+    if stack_status[-9:] != "_COMPLETE":
+        logging.debug(f"STACK: {stack_name} status: {stack_status} is not complete")
         return False
     return True
 
@@ -223,6 +226,50 @@ def list_stacks(stack_name=None, region_name=default_region) -> bool:
 
     return True
 
+
+def get_failed_stack_events(stack_name, region_name=default_region) -> list:
+    """
+    Returns a list of stack events that have status that includes FAILED
+    :param string stack_name:
+    :param string region_name:
+    :return: list of failed events
+    """
+    cfn_client = get_cfn_client(region_name=region_name)
+    try:
+        events = cfn_client.describe_stack_events(StackName=stack_name)
+    except Exception as e:
+        logging.error(f"unable to get stack events")
+        logging.error(e)
+        return False
+    result = list()
+    for event in events['StackEvents']:
+        if "FAILED" in event['ResourceStatus']:
+            result.append(event)
+    return result
+
+
+@begin.subcommand
+def reason(stack_name, region_name=default_region) -> bool:
+    """
+    Logs the reason for a failed stack to info
+    :param string stack_name:
+    :param string region_name:
+    :return: True
+    """
+    events = get_failed_stack_events(stack_name=stack_name, region_name=region_name)
+    logging.info(f"{len(events)} FAILED stack events:")
+    if len(events) > 0:
+        logging.info(f"{'UTC time':{10}} {'ResourceStatus':{15}} {'ResourceType':{35}} "
+                     f"{'LogicalResourceId':{30}} {'ResourceStatusReason'}")
+        for event in events:
+            timestamp = event['Timestamp'].strftime("%H:%M:%S")
+            status_reason = event['ResourceStatusReason'].split("(")[0]
+            if "Resource update cancelled" not in status_reason:
+                logging.info(f"{timestamp:{10}} {event['ResourceStatus']:{15}} {event['ResourceType']:{35}} "
+                             f"{event['LogicalResourceId']:{30}} {status_reason}")
+    return True
+
+
 @begin.subcommand
 def apply(stack_name, module_name=None, parameter_files=None, capabilities=default_capabilities,
           region_name=default_region, auto_approve=False) -> bool:
@@ -327,6 +374,12 @@ def apply(stack_name, module_name=None, parameter_files=None, capabilities=defau
     end = datetime.now()
     duration = fmt_timedelta((end - start))
 
+    # If stack_status is in FAILED state or ROLLBACK, determine reason from events
+    if "FAILED" in stack_status or "ROLLBACK" in stack_status:
+        logging.warning(f"STACK: {stack_name} not {action} and is in status {stack_status}")
+        reason(stack_name=stack_name, region_name=region_name)
+        return False
+
     # Print number of resources deployed
     logging.info(f"STACK: {stack_name} {action} {len(get_stack_resources(stack_name=stack_name))} resources "
                  f"in {duration}")
@@ -389,7 +442,8 @@ def plan(stack_name, module_name=None, region_name=default_region, parameter_fil
             # Go through each resource in the stack
             i = 0
             for resource in template.resources:
-                logging.info(f"{i + 1:{2}}) {'Create':{8}} {resource:{25}} {template.resources[resource].resource_type}")
+                logging.info(
+                    f"{i + 1:{2}}) {'Create':{8}} {resource:{25}} {template.resources[resource].resource_type}")
                 i += 1
         # invalid output type
         else:
@@ -462,7 +516,7 @@ def plan(stack_name, module_name=None, region_name=default_region, parameter_fil
             resource_type = change_set['Changes'][i]['ResourceChange']['ResourceType']
             scope = change_set['Changes'][i]['ResourceChange']['Scope']
             logging.info(f"{i + 1:{2}}) {action:{8}} {logical_id:{20}} {resource_id:{25}} "
-                     f"{resource_type:{30}} {str(scope):{10}} {replacement}")
+                         f"{resource_type:{30}} {str(scope):{10}} {replacement}")
             # print(json.dumps(change_set['Changes'][i], indent=2))
         # If the user requested to delete change set (default = True)
         if delete_change_set:
