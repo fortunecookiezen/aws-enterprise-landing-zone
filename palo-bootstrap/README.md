@@ -1,5 +1,32 @@
 # Palo configuration
 
+#### Password
+To update the palo admin password in the bootstrap.xml file
+```bash
+PA_PASS=xxxx
+PA_LOCAL_FILE=bootstrap/config/bootstrap.xml
+SALT=acfwlwlo
+PHASH=`echo $PA_PASS | mkpasswd -m MD5 -S $SALT -s`
+TEMPFILE=$(mktemp)
+cp $PA_LOCAL_FILE $TEMPFILE
+xq -x --arg PHASH $PHASH '.config["mgt-config"].users.entry.phash = $PHASH' $TEMPFILE > $PA_LOCAL_FILE
+```
+
+#### Deployment
+This terraform template deploys a s3 bucket, the required folders and bootstrap files to boot a palo instance
+
+To deploy
+```bash
+terraform init
+terrafrom plan
+terraform apply
+```
+
+## Configuration
+The bootstap configuration was created by configuring a fresh palo instance the way we want, then exporting the running
+config to `bootstrap/config/bootstrap.xml`
+
+The following changes were made to create the current bootstrap.xml
 
 #### Zones
 
