@@ -346,6 +346,7 @@ def apply(stack_name, module_name=None, parameter_files=None, capabilities=defau
                 Capabilities=capabilities,
             )
         except Exception as e:
+            logging.error(f"STACK {stack_name} NOT CREATED. Error occurred")
             logging.error(e)
             return False
         action = "deployed"
@@ -373,12 +374,14 @@ def apply(stack_name, module_name=None, parameter_files=None, capabilities=defau
                 Capabilities=capabilities,
             )
         except Exception as e:
-            if 'No updates are to be performed' not in e.__str__():
+            if 'No updates are to be performed' in e.__str__():
+                # No updates required. Continue without error
+                logging.warning(f"STACK {stack_name} NOT UPDATED. No updates were required")
+            else:
                 # If this isn't a no updates required warning, bail out
+                logging.error(f"STACK {stack_name} NOT UPDATED. Error occurred")
                 logging.error(e)
                 return False
-            else:
-                logging.warning(f"STACK NOT UPDATED. No updates required")
         action = 'updated'
 
     # Stack is in error state
