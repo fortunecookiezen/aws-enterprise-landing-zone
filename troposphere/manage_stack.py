@@ -72,6 +72,8 @@ def stack_is_complete(stack_name, region_name=default_region) -> bool:
     :return: True if is in completed state, else false
     """
     stack_status = get_stack_status(stack_name, region_name=region_name)
+    if not stack_status:
+        return False
     if stack_status[-9:] != "_COMPLETE":
         logging.debug(f"STACK: {stack_name} status: {stack_status} is not complete")
         return False
