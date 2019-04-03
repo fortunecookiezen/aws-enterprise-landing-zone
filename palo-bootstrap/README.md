@@ -1,7 +1,7 @@
 # Palo configuration
 
 #### Password
-To update the palo admin password in the bootstrap.xml file
+To update the palo admin password in the bootstrap.xml file (requires `xq` & `mkpasswd` executables)
 ```bash
 PA_PASS=xxxx
 PA_LOCAL_FILE=bootstrap/config/bootstrap.xml
