@@ -1,8 +1,9 @@
+<?xml version="1.0"?>
 <config version="9.0.0" urldb="paloaltonetworks">
   <mgt-config>
     <users>
       <entry name="admin">
-        <phash>$1$acfwlwlo$9.RZDR23Lpfl5vlC5Hk6s1</phash>
+        <phash>$1$kkgawfml$TrlJgHEATWCkdHnGxU0GM0</phash>
         <permissions>
           <role-based>
             <superuser>yes</superuser>
@@ -13,10 +14,10 @@
     </users>
   </mgt-config>
   <shared>
-    <application></application>
-    <application-group></application-group>
-    <service></service>
-    <service-group></service-group>
+    <application/>
+    <application-group/>
+    <service/>
+    <service-group/>
     <botnet>
       <configuration>
         <http>
@@ -347,7 +348,7 @@
             </interface>
             <ecmp>
               <algorithm>
-                <ip-modulo></ip-modulo>
+                <ip-modulo/>
               </algorithm>
             </ecmp>
             <routing-table>
@@ -366,7 +367,7 @@
                     <metric>10</metric>
                     <destination>10.0.0.0/8</destination>
                     <route-table>
-                      <unicast></unicast>
+                      <unicast/>
                     </route-table>
                   </entry>
                   <entry name="172-net">
@@ -382,7 +383,7 @@
                     <metric>10</metric>
                     <destination>172.16.0.0/12</destination>
                     <route-table>
-                      <unicast></unicast>
+                      <unicast/>
                     </route-table>
                   </entry>
                   <entry name="192-net">
@@ -398,7 +399,7 @@
                     <metric>10</metric>
                     <destination>192.168.0.0/16</destination>
                     <route-table>
-                      <unicast></unicast>
+                      <unicast/>
                     </route-table>
                   </entry>
                 </static-route>
@@ -465,8 +466,8 @@
       </deviceconfig>
       <vsys>
         <entry name="vsys1">
-          <application></application>
-          <application-group></application-group>
+          <application/>
+          <application-group/>
           <zone>
             <entry name="dmz">
               <network>
@@ -490,9 +491,9 @@
               </network>
             </entry>
           </zone>
-          <service></service>
-          <service-group></service-group>
-          <schedule></schedule>
+          <service/>
+          <service-group/>
+          <schedule/>
           <rulebase>
             <security>
               <rules>
