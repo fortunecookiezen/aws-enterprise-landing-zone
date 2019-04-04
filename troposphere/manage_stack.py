@@ -96,7 +96,10 @@ def get_stack_outputs(stack_name, region_name=default_region) -> list:
             return []
         else:
             raise e
-    return result['Stacks'][0]['Outputs']
+    if 'Outputs' not in result['Stacks'][0]:
+        return list()
+    else:
+        return result['Stacks'][0]['Outputs']
 
 
 def get_stack_resources(stack_name, region_name=default_region) -> list:
@@ -223,7 +226,10 @@ def list_stacks(stack_name=None, region_name=default_region) -> bool:
         stack_name = stack['StackName']
         stack_status = stack['StackStatus']
         drift_status = stack['DriftInformation']['StackDriftStatus']
-        stack_description = stack['Description']
+        if 'Description' in stack:
+            stack_description = stack['Description']
+        else:
+            stack_description = ''
         logging.info(f"{stack_name:{20}} {stack_status:{20}} {drift_status:{20}} {stack_description}")
 
     return True
@@ -281,7 +287,7 @@ def reason(stack_name, region_name=default_region) -> bool:
     :return: True
     """
     events = get_failed_stack_events(stack_name=stack_name, region_name=region_name)
-    logging.info(f"{len(events)} FAILED stack events:")
+    logging.info(f"STACK {stack_name} create/update FAILED due to the following stack events:")
     if len(events) > 0:
         logging.info(f"{'UTC time':{10}} {'ResourceStatus':{15}} {'ResourceType':{35}} "
                      f"{'LogicalResourceId':{30}} {'ResourceStatusReason'}")
@@ -537,9 +543,13 @@ def plan(stack_name, module_name=None, region_name=default_region, parameter_fil
         for i in range(len(change_set['Changes'])):
             # For each change item, print the details
             action = change_set['Changes'][i]['ResourceChange']['Action']
-            replacement = change_set['Changes'][i]['ResourceChange']['Replacement']
+            if action not in ['Add', 'Remove']:
+                replacement = change_set['Changes'][i]['ResourceChange']['Replacement']
+                resource_id = change_set['Changes'][i]['ResourceChange']['PhysicalResourceId']
+            else:
+                replacement = ''
+                resource_id = ''
             logical_id = change_set['Changes'][i]['ResourceChange']['LogicalResourceId']
-            resource_id = change_set['Changes'][i]['ResourceChange']['PhysicalResourceId']
             resource_type = change_set['Changes'][i]['ResourceChange']['ResourceType']
             scope = change_set['Changes'][i]['ResourceChange']['Scope']
             logging.info(f"{i + 1:{2}}) {action:{8}} {logical_id:{20}} {resource_id:{25}} "
