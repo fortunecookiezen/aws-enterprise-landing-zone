@@ -446,6 +446,7 @@ def get_template():
             IamInstanceProfile=Ref(profile_palo_inst),
             DependsOn=profile_palo_inst.title,
             SubnetId=Ref(subnets[az]["trusted"]),
+            # Define root ebs volume manually so that we can set DeleteOnTermination = True
             BlockDeviceMappings=[
                 ec2.BlockDeviceMapping(
                     DeviceName="/dev/xvda",
@@ -460,7 +461,7 @@ def get_template():
         )
         template.add_resource(palo_inst)
         # Add an additional network interface for each zone except bastion zone
-        nicIndex = 1
+        nic_index = 1
         for zone in zones:
             if zone != "bastion":
                 palo_nic = template.add_resource(
@@ -474,14 +475,18 @@ def get_template():
                     )
                 )
                 palo_nics[az][zone] = palo_nic
-                pal_nic_attach = template.add_resource(
+                palo_nic_attach = template.add_resource(
                     ec2.NetworkInterfaceAttachment(
                         "paloNicAttach" + zone.capitalize() + az.capitalize(),
                         NetworkInterfaceId=Ref(palo_nic),
                         InstanceId=Ref(palo_inst),
-                        DeviceIndex=nicIndex
+                        DeviceIndex=nic_index,
+                        # Force nics to attach to instance in order so that they get os ethX numbers consistently
+                        DependsOn=last_nic_attach.title if nic_index > 1 else palo_inst.title
                     )
                 )
+                nic_index += 1
+                last_nic_attach = palo_nic_attach
                 if zone == "dmz":
                     # Create an elastic IP for the public interface
                     palo_eip = template.add_resource(
@@ -499,7 +504,6 @@ def get_template():
                             NetworkInterfaceId=Ref(palo_nic)
                         )
                     )
-                nicIndex += 1
 
     ###################################
     # Bastion Instance
