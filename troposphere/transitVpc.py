@@ -299,10 +299,6 @@ def get_template():
             )
         )
 
-
-
-
-
     ###############################
     # Security Groups
 
@@ -524,8 +520,6 @@ def get_template():
             )
         )
 
-
-
     #############################
     # Routing - DMZ Zone
     zone = "dmz"
@@ -738,7 +732,6 @@ def get_template():
         )
     )
 
-
     ##############################
     # Outputs
 
@@ -769,7 +762,6 @@ def get_template():
                 Export=Export(Join("-", [Ref("AWS::StackName"), "tgwId", zone]))
             )
         )
-
 
     return template
 

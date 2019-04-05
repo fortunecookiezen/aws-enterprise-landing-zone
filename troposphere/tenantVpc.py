@@ -1,16 +1,16 @@
 from troposphere import Parameter, Output, Template
 from troposphere import Cidr, Join, GetAtt, Ref, Tags, GetAZs, Select, ImportValue, Base64
-from troposphere import FindInMap
 import troposphere.ec2 as ec2
 import troposphere.iam as iam
 from troposphere.cloudformation import AWSCustomObject
-import boto3
 import logging
 import sys
 from awacs.aws import Action, Allow, PolicyDocument, Principal, Statement
 
+
 def get_template():
     template = Template()
+    template.description = "Test Tenant VPC for Palo Transit VPC"
 
     ######################################
     # Lambda Helper
@@ -25,7 +25,6 @@ def get_template():
             'TransitGatewayId': (str, True),
             'RouteTableId': (str, True)
         }
-
 
     #######################################
     # Parameters - Environment Configuration
@@ -111,7 +110,6 @@ def get_template():
     )
     template.add_parameter_to_group(lambda_helpers_stack, group_name)
 
-
     ####################
     # Data Lookup
 
@@ -159,7 +157,6 @@ def get_template():
         )
     )
 
-
     # Transit Gateway Attach to subnet
     tgw_attach = template.add_resource(
         ec2.TransitGatewayAttachment(
@@ -204,7 +201,6 @@ def get_template():
         )
     )
 
-
     #############################
     # SSM
 
@@ -227,7 +223,6 @@ def get_template():
             GroupId=GetAtt(sg_ssm, "GroupId"),
         )
     )
-
 
     # SSM Endpoints
     for ep_type in ["ec2", "ec2messages", "ssm", "ssmmessages"]:
