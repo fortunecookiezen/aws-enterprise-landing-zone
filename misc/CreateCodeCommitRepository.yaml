@@ -4,7 +4,7 @@ Parameters:
   Owner:
     Type: String
     Description: "email address of the the Owner of this stack"
-    Default: "aws.administrators@mutualofomaha.com"
+    Default: "phillips.james@gmail.com"
     AllowedPattern: "^[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
   RepositoryName: 
     Type: String
@@ -95,9 +95,9 @@ Resources:
                   - "/*"
             Principal:
               AWS:
-              - '406661003421'
-              - '019560164653'
-              - '506949598203'
+              - 'edit_me'
+              - 'edit_me'
+              - 'edit_me'
 
   CodeCommitRepo:
     Type: AWS::CodeCommit::Repository
@@ -146,3 +146,9 @@ Resources:
       ArtifactStore:
         Type: S3
         Location: !Ref ArtifactBucketName
+Outputs:
+  templatebucketurl:
+    Description: Deploy templates to this bucket
+    Value: !GetAtt S3TemplateBucket.DomainName
+    Export: # added to export
+      Name: CloudFormationTemplatebucketUrl        
