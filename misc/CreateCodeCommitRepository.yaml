@@ -1,0 +1,148 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: ""
+Parameters:
+  Owner:
+    Type: String
+    Description: "email address of the the Owner of this stack"
+    Default: "aws.administrators@mutualofomaha.com"
+    AllowedPattern: "^[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
+  RepositoryName: 
+    Type: String
+    Description: "The name of the repository to be created"
+  RepositoryDescription:
+    Type: String
+    Description: "What will this repo contain?"
+  ArtifactBucketName:
+    Type: String
+    Description: "S3 Bucket for Source Artifacts"
+  TemplateBucketName:
+    Type: String
+    Description: "S3 Bucket for deployed CloudFormation Templates"
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Environment Configuration"
+        Parameters:
+        - Owner
+      - Label:
+          default: "Stack Configuration"
+        Parameters:
+        - RepositoryName
+        - RepositoryDescription
+        - ArtifactBucketName
+        - TemplateBucketName
+    ParameterLabels:
+      RepositoryName:
+        default: "Name of the repository to be created"
+      RepositoryDescription:
+        default: "Description of the repository's contents"
+      ArtifactBucketName:
+        default: "S3 Bucket for Source Artifacts"
+      TemplateBucketName:
+        default: "S3 Bucket for CloudFormation Templates"
+
+Resources: 
+  S3ArtifactBucket:
+    DeletionPolicy: Delete
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Ref ArtifactBucketName
+      AccessControl: Private
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+        -
+          Key: "ManagedBy"
+          Value: !Ref AWS::StackName
+  S3TemplateBucket:
+    DeletionPolicy: Delete
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Ref TemplateBucketName
+      AccessControl: Private
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+        -
+          Key: "ManagedBy"
+          Value: !Ref AWS::StackName
+  TemplateBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3TemplateBucket
+      PolicyDocument:
+        Statement:
+          -
+            Action:
+              - 's3:GetObject'
+              - 's3:GetObjectAcl'
+            Effect: "Allow"
+            Resource:
+              Fn::Join:
+                - ""
+                -
+                  - "arn:aws:s3:::"
+                  -
+                    Ref: "S3TemplateBucket"
+                  - "/*"
+            Principal:
+              AWS:
+              - '406661003421'
+              - '019560164653'
+              - '506949598203'
+
+  CodeCommitRepo:
+    Type: AWS::CodeCommit::Repository
+    Properties: 
+      RepositoryDescription: !Ref RepositoryDescription
+      RepositoryName: !Ref RepositoryName
+
+  ReleasePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    DependsOn: S3ArtifactBucket
+    Description: Creating a deployment pipeline for CloudFormation Templates
+    Properties:
+      Name: !Sub ${RepositoryName}-Pipeline
+      RoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/service-role/AWSCodePipelineServiceRole"
+      Stages:
+      - Name: Source
+        Actions:
+        - ActionTypeId:
+            Category: Source
+            Owner: AWS
+            Provider: CodeCommit
+            Version: 1
+          Configuration:
+            BranchName: master
+            PollForSourceChanges: true
+            RepositoryName: !Ref RepositoryName
+          Name: SourceCode
+          OutputArtifacts:
+          - Name: !Sub ${RepositoryName}-SourceArtifact
+          RunOrder: 1
+      - Name: Deploy
+        Actions:
+        - ActionTypeId:
+            Category: Deploy
+            Owner: AWS
+            Provider: S3
+            Version: 1
+          Configuration:
+             ObjectKey: !Ref RepositoryName
+             Extract: "true"
+             BucketName: !Ref TemplateBucketName
+          InputArtifacts:
+            - Name: !Sub ${RepositoryName}-SourceArtifact
+          Name: S3-Deploy
+          RunOrder: 1
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactBucketName
