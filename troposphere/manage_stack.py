@@ -7,6 +7,8 @@ import yaml
 import logging
 from boto3_type_annotations.cloudformation import Client
 from botocore.exceptions import ClientError
+import os
+import sys
 
 default_region = 'us-west-2'
 default_capabilities = 'CAPABILITY_NAMED_IAM'
@@ -14,6 +16,9 @@ default_capabilities = 'CAPABILITY_NAMED_IAM'
 # Set these extra verbose loggers to INFO (event when app is in debug)
 logging.getLogger('botocore').setLevel(logging.INFO)
 logging.getLogger('urllib3').setLevel(logging.INFO)
+
+# Add the cwd to the import path
+sys.path.append(os.getcwd())
 
 
 def create_cfn_parameters(parameters) -> list:
@@ -253,6 +258,11 @@ def get_failed_stack_events(stack_name, region_name=default_region) -> list:
     for event in events['StackEvents']:
         if "FAILED" in event['ResourceStatus']:
             result.append(event)
+    if len(result) == 0:
+        # There were no FAILED events. Look for ROLLBACK_IN_PROGRESS
+        for event in events['StackEvents']:
+            if "ROLLBACK_IN_PROGRESS" in event['ResourceStatus']:
+                result.append(event)
     return result
 
 @begin.subcommand
