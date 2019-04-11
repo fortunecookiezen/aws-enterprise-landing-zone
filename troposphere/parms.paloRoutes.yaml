@@ -1,0 +1,4 @@
+paloUser: admin
+paloPass: MoOCloud123!
+TransitVpcStack: transitVpc
+PaloHelpersStack: palo-lambda-helpers-prd

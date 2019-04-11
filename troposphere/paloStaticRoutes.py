@@ -1,4 +1,4 @@
-from troposphere import Template, Parameter, ImportValue, Ref
+from troposphere import Template, Parameter, ImportValue, Ref, Join, GetAtt
 import cfn_palo_resources
 import cfn_custom_resources
 
@@ -7,10 +7,49 @@ pvt_cidrs = ['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
 azs = ['a', 'b']
 azs = ['a']
 
+trusted_palo_interface = 'ethernet1/2'
+
 
 def get_template():
     template = Template()
     template.description = "Static Routes for Palo Alto"
+
+    group_name = "Environment Configuration"
+
+    asi = template.add_parameter(
+        Parameter(
+            "ASI",
+            Description="asi - must be lower-case, limit 4 characters",
+            Type="String",
+            MinLength=2,
+            MaxLength=4,
+            AllowedPattern="[a-z]*"
+        )
+    )
+    template.add_parameter_to_group(asi, group_name)
+
+    env = template.add_parameter(
+        Parameter(
+            "Environment",
+            Description="environment (nonprod|prod) - must be lower-case, limit 7 characters",
+            Type="String",
+            MinLength=3,
+            MaxLength=7,
+            AllowedPattern="[a-z]*"
+        )
+    )
+    template.add_parameter_to_group(env, group_name)
+
+    owner = template.add_parameter(
+        Parameter(
+            "Owner",
+            Type="String",
+            Description="email address of the the Owner of this stack",
+            Default="admin@root.com",
+            AllowedPattern="^[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
+        )
+    )
+    template.add_parameter_to_group(owner, group_name)
 
     palo_helpers_stack = template.add_parameter(
         Parameter(
@@ -78,25 +117,20 @@ def get_template():
         )
     )
 
-    # TODO: This needs to be dynamic based on the cidr of the subnet
-    palo_nexthop_ip = template.add_parameter(
-        Parameter(
-            "paloNextHopIp",
-            Description="IP of the router on the Trusted Subnet",
-            Type="String",
-            MinLength=1,
-            MaxLength=255,
-            Default="10.250.1.1"
-        )
-    )
-
-    template.add_parameter_to_group(lambda_helpers_stack, group_name)
     for az in azs:
         subnet_attr = template.add_resource(
             cfn_custom_resources.VpcSubnetAttributesLambda(
                 "subnetAttrs" + "Trusted" + az.capitalize(),
                 ServiceToken=ImportValue(Join("-", [Ref(lambda_helpers_stack), "VpcSubnetAttributes"])),
-                SubnetId=ImportValue(transit_vpc_stack + "subnetId" + az.capitalize() + "Trusted"),
+                SubnetId=ImportValue(Join("-", [Ref(transit_vpc_stack), "subnetId" + az.capitalize() + "Trusted"])),
+            )
+        )
+        subnet_router_ip = template.add_resource(
+            cfn_custom_resources.SubnetIpGeneratorLambda(
+                "subnetRouterIp" + "Trusted" + az.capitalize(),
+                ServiceToken=ImportValue(Join("-", [Ref(lambda_helpers_stack), "SubnetIpGenerator"])),
+                CidrBlock=GetAtt(subnet_attr, "CidrBlock"),
+                Position=1
             )
         )
         for pvt_cidr in pvt_cidrs:
@@ -105,10 +139,11 @@ def get_template():
                     "paloRoute" + az.capitalize() + pvt_cidr.replace(".", "x").replace("/", "y"),
                     ServiceToken=ImportValue(Join("-", [Ref(palo_helpers_stack), "VpcSubnetAttributes"])),
                     DestinationCidrBlock=pvt_cidr,
-                    VirtualRouter=palo_virtual_router,
-                    NextHopIp=palo_nexthop_ip,  # TODO: Make this dynamic from the subnet_attr
-                    PaloMgtIp=ImportValue(palo_helpers_stack + "-palo" + az.capitalize() + "mgtIp"),
-                    PaloUser=palo_user,
-                    PaloPassword=palo_pass,
+                    VirtualRouter=Ref(palo_virtual_router),
+                    NextHopIp=GetAtt(subnet_router_ip, "IpAddress"),
+                    PaloMgtIp=ImportValue(Join("-", [Ref(transit_vpc_stack), "palo" + az.capitalize() + "mgtIp"])),
+                    PaloUser=Ref(palo_user),
+                    PaloPassword=Ref(palo_pass),
                 )
             )
+    return template

@@ -26,3 +26,12 @@ class VpcSubnetAttributesLambda(AWSCustomObject):
         'ServiceToken': (str, True),
         'SubnetId': (str, True),
     }
+
+
+class SubnetIpGeneratorLambda(AWSCustomObject):
+    resource_type = "Custom::CustomResource"
+    props = {
+        'ServiceToken': (str, True),
+        'CidrBlock': (str, True),
+        'Position': (int, True),
+    }
