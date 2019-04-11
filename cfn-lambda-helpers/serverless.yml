@@ -57,6 +57,7 @@ functions:
     handler: vpc_subnet_attributes.handler
 
 resources:
+  Description: Cloudformation helper functions
   # export the function ARNs
   Outputs:
     VpcTgwRouteLambdaFunctionArn:

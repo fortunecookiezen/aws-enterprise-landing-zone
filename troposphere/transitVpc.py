@@ -6,7 +6,9 @@ import troposphere.iam as iam
 import boto3
 import logging
 import sys
+import string
 from awacs.aws import Action, Allow, PolicyDocument, Principal, Statement
+
 import cfn_custom_resources
 
 
@@ -14,13 +16,12 @@ def get_template():
     template = Template()
     template.description = "Transit VPC with Palo Alto Firewalls"
 
+    azs = ['a', 'b']
+    azs = ['a']
+
     create_bastion = True
-    azs = ["a", "b"]
-    azs = ["a"]
     pvt_cidrs = ['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
-    #palo_ami_name = "PA-VM-AWS-8.0.13-8736f7a7-35b2-4e03-a8eb-6a749a987428-*"
     palo_ami_name = "PA-VM-AWS-9.*.*-8736f7a7-35b2-4e03-a8eb-6a749a987428-*"
-    palo_if_ports = [80, 443]
     zones = ["dmz", "trusted", "web"]
 
     if create_bastion:
@@ -603,9 +604,9 @@ def get_template():
         count = 0
         for cidr in web_cidrs:
             rte = template.add_resource(
-                VpcTgwRouteLambda(
+                cfn_custom_resources.VpcTgwRouteLambda(
                     "Route" + zone.capitalize() + az.capitalize()
-                    # Include string-ified Cidr in the route resource name because there is no route_update() method in AWS.
+                    # Include string-ified Cidr in the resource name because there is no route_update() method in AWS.
                     # Doing this forces delete/create anytime the route's cidr changes
                     + cidr.replace('.', 'x').replace('/', 'z'),
                     ServiceToken=ImportValue(Join("-", [Ref(lambda_helpers_stack), "VpcTgwRoute"])),
@@ -759,12 +760,49 @@ def get_template():
             )
         )
 
+    template.add_output(
+        Output(
+            "vpcId",
+            Description="The ID of the transit VPC",
+            Value=Ref(vpc),
+            Export=Export(
+                Join('-', [
+                    Ref("AWS::StackName"),
+                    "vpcId"
+                ])
+            )
+        )
+    )
+
+    az = az[0]
+    zone = 'trusted'
+    template.add_output(
+        Output(
+            "subnetId" + az.capitalize() + zone.capitalize(),
+            Description="The ID of the first trusted subnet VPC",
+            Value=Ref(subnets[az][zone]),
+            Export=Export(
+                Join('-', [
+                    Ref("AWS::StackName"),
+                    "subnetId" + az.capitalize() + zone.capitalize(),
+                ])
+            )
+
+        )
+    )
+
     for az in azs:
         template.add_output(
             Output(
                 "palo" + az.capitalize() + "mgtIp",
                 Description="Management IP of Palo" + az.capitalize(),
-                Value=GetAtt("paloInst" + az.capitalize(), "PrivateIp")
+                Value=GetAtt("paloInst" + az.capitalize(), "PrivateIp"),
+                Export=Export(
+                    Join('-', [
+                        Ref("AWS::StackName"),
+                        "palo" + az.capitalize() + "mgtIp",
+                    ])
+                )
             )
         )
 

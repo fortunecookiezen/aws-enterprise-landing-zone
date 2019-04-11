@@ -1,0 +1,62 @@
+service: palo-lambda-helpers
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    # use docker to compile requirements zip file
+    dockerizePip: true
+  ASI: css
+  Environment: sbx
+  Owner: brian.peterson@cloudshift.cc
+
+provider:
+  name: aws
+  runtime: python3.7
+
+  stage: prd
+  region: us-west-2
+
+  stackTags:
+    ASI: ${self:custom.ASI}
+    Environment: ${self:custom.Environment}
+    Owner: ${self:custom.Owner}
+
+  vpc:
+    securityGroupIds:
+      - !Ref lambdaSg
+    subnetIds:
+      - !ImportValue ${opt:paloStackName}-subnetIdATrusted
+
+functions:
+  PaloStaticRoute:
+    handler: palo_static_route.handler
+
+resources:
+  Description: Palo Alto Helper functions for stack ${opt:paloStackName}
+  Resources:
+    lambdaSg:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Security Group for Palo Lambda Helpers Functions
+        GroupName: ${self:service}-sec-grp
+        VpcId: !ImportValue ${opt:paloStackName}-vpcId
+        SecurityGroupEgress:
+          - IpProtocol: -1
+            FromPort: 0
+            ToPort: 0
+            CidrIp: 0.0.0.0/0
+  Outputs:
+     paloStaticRouteLambdaFunctionArn:
+       Description: ARN of the Palo Static Route Helper Function
+       Value: !GetAtt
+         - PaloStaticRouteLambdaFunction
+         - Arn
+       Export:
+         Name:
+           !Join
+             - '-'
+             - - !Ref 'AWS::StackName'
+               - VpcSubnetAttributes
+

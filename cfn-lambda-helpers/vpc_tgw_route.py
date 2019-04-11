@@ -63,7 +63,7 @@ def create(event, context):
         f"Creating Route DestinationCidrBlock: {destination_cidr_block}, TransitGatewayId: {transit_gateway_id} "
         f"RouteTableId: {route_table_id}")
     if tgw_route_exists(route_table_id, transit_gateway_id, destination_cidr_block):
-        logger.warning(f"Identical route already exists. Not creating")
+        logger.warning(f"Specified route already exists. Not creating")
         return
     ec2client = boto3.client("ec2")
     ec2client.create_route(
