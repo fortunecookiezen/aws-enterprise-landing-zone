@@ -79,7 +79,7 @@ def stack_is_complete(stack_name, region_name=default_region) -> bool:
     stack_status = get_stack_status(stack_name, region_name=region_name)
     if not stack_status:
         return False
-    if stack_status[-9:] == "_COMPLETE" or stack_status == "ROLLBACK_FAILED":
+    if stack_status[-9:] == "_COMPLETE" or stack_status[-7:] == "_FAILED":
         return True
     logging.debug(f"STACK: {stack_name} status: {stack_status} is not complete")
     return False
