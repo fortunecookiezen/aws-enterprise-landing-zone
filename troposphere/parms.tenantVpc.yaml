@@ -1,0 +1,3 @@
+vpcCidr: 10.10.0.0/24
+securityZone: trusted
+paloStack: transitVpc
