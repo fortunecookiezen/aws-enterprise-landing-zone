@@ -1,0 +1,91 @@
+service: cfn-lambda-helpers
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    # use docker to compile requirements zip file
+    dockerizePip: true
+    # deploy default omitted packages (ie. boto3)
+    noDeploy: []
+  ASI: css
+  Environment: sbx
+  Owner: brian.peterson@cloudshift.cc
+
+provider:
+  name: aws
+  runtime: python3.7
+
+  stage: prd
+  region: us-west-2
+
+  stackTags:
+    ASI: ${self:custom.ASI}
+    Environment: ${self:custom.Environment}
+    Owner: ${self:custom.Owner}
+
+  iamRoleStatements:
+    # permissions required for the helper functions
+    - Effect: Allow
+      Action:
+        - ec2:CreateRoute
+        - ec2:DeleteRoute
+        - ec2:DescribeSubnets
+        - ec2:DescribeTransitGateways
+        - ec2:DescribeSubnets
+      Resource:
+        - "*"
+    # permissions required for the crhelper library polling functions
+    - Effect: Allow
+      Action:
+        - events:PutRule
+        - events:DeleteRule
+        - events:PutTargets
+        - events:DeleteTargets
+        - lambda:AddPermission
+        - lambda:RemovePermission
+      Resource:
+        - "*"
+
+functions:
+  VpcTgwRoute:
+    handler: vpc_tgw_route.handler
+  VpcTgwAttributes:
+    handler: vpc_tgw_attributes.handler
+  VpcSubnetAttributes:
+    handler: vpc_subnet_attributes.handler
+
+resources:
+  # export the function ARNs
+  Outputs:
+    VpcTgwRouteLambdaFunctionArn:
+      Description: Non versioned lambda arn for VPC Transit Gateway Route Function
+      Value: !GetAtt
+        - VpcTgwRouteLambdaFunction
+        - Arn
+      Export:
+        Name: !Join
+          - '-'
+          - - !Ref 'AWS::StackName'
+            - VpcTgwRoute
+    VpcTgwAttributesLambdaFunctionArn:
+      Description: Non versioned lambda arn for VPC Transit Gateway Attributes Function
+      Value: !GetAtt
+        - VpcTgwAttributesLambdaFunction
+        - Arn
+      Export:
+        Name: !Join
+          - '-'
+          - - !Ref 'AWS::StackName'
+            - VpcTgwAttributes
+    VpcSubnetAttributesLambdaFunctionArn:
+      Description: Non versioned lambda arn for VPC Subnet Attributes Function
+      Value: !GetAtt
+        - VpcSubnetAttributesLambdaFunction
+        - Arn
+      Export:
+        Name: !Join
+          - '-'
+          - - !Ref 'AWS::StackName'
+            - VpcSubnetAttributes

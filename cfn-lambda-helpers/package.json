@@ -1,0 +1,11 @@
+{
+  "name": "cfn-lambda-helpers",
+  "description": "",
+  "version": "0.1.0",
+  "dependencies": {
+    "serverless-attach-managed-policy": "0.0.7"
+  },
+  "devDependencies": {
+    "serverless-python-requirements": "^4.3.0"
+  }
+}
