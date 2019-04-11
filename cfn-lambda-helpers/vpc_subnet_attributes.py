@@ -41,21 +41,17 @@ def create(event, context):
     )['Subnets'][0]
     # To add response data update the helper.Data dict
     helper.Data.update(response_data)
-    # Return None to generate a unique ID
-    return None
 
 
 @helper.update
 def update(event, context):
     logger.info("Got Update, doing nothing")
-    return True
 
 
 @helper.delete
 def delete(event, context):
     logger.info("Got Delete, doing nothing")
     # Delete never returns anything. Should not fail if the underlying resources are already deleted. Desired state.
-    return True
 
 
 def handler(event, context):

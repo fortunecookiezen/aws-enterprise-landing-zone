@@ -19,17 +19,15 @@ except Exception as e:
 def create(event, context):
     """
     returns attributes about transit gateway. Removes Tags and merges Options into main dict
-    'TransitGatewayId', 'TransitGatewayArn', 'State', 'OwnerId', 'Description', 'CreationTime',
+    'TransitGatewayId', 'TransitGatewayArn', 'State', 'OwnerId', 'Description',
     'AmazonSideAsn', 'AutoAcceptSharedAttachments', 'DefaultRouteTableAssociation', 'AssociationDefaultRouteTableId',
     'DefaultRouteTablePropagation', 'PropagationDefaultRouteTableId', 'VpnEcmpSupport', 'DnsSupport'
     :param event:
     :param context:
     :return:
     """
-    logger.info(f"EVENT: {event}")
-    logger.info(f"CONTEXT: {context}")
     logger.info("Got Create")
-    transit_gateway_id = event['ResourceProperties']['TransitGatewayId'],
+    transit_gateway_id = event['ResourceProperties']['TransitGatewayId']
     logger.info(f"requesting attributes for transit gateway id: {transit_gateway_id}")
     client = boto3.client("ec2")
     transit_gateways = client.describe_transit_gateways(
@@ -38,13 +36,14 @@ def create(event, context):
         ]
     )
     for transit_gateway in transit_gateways['TransitGateways']:
-        # Remove tags
+        # Remove datetime object that is not json serializable and provides no value to cfn resource
+        del transit_gateway['CreationTime']
+        # Remove tags which are a dict and provide no value to cfn resource
         del transit_gateway['Tags']
         # separate options dict
         options = transit_gateway.pop('Options')
         # return combined list of attributes
         helper.Data.update({**transit_gateway, **options})
-    return "None"
 
 
 @helper.update
@@ -52,14 +51,12 @@ def update(event, context):
     logger.info("Got Update, doing nothing")
     # If the update resulted in a new resource being created, return an id for the new resource. CloudFormation will send
     # a delete event with the old id when stack update completes
-    return True
 
 
 @helper.delete
 def delete(event, context):
     logger.info("Got Delete, doing nothing")
     # Delete never returns anything. Should not fail if the underlying resources are already deleted. Desired state.
-    return True
 
 
 def handler(event, context):

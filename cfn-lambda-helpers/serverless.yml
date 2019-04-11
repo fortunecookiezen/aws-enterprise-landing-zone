@@ -32,8 +32,8 @@ provider:
         - ec2:CreateRoute
         - ec2:DeleteRoute
         - ec2:DescribeSubnets
+        - ec2:DescribeRouteTables
         - ec2:DescribeTransitGateways
-        - ec2:DescribeSubnets
       Resource:
         - "*"
     # permissions required for the crhelper library polling functions
@@ -42,7 +42,7 @@ provider:
         - events:PutRule
         - events:DeleteRule
         - events:PutTargets
-        - events:DeleteTargets
+        - events:RemoveTargets
         - lambda:AddPermission
         - lambda:RemovePermission
       Resource:
