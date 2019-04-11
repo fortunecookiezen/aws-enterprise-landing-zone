@@ -79,10 +79,10 @@ def stack_is_complete(stack_name, region_name=default_region) -> bool:
     stack_status = get_stack_status(stack_name, region_name=region_name)
     if not stack_status:
         return False
-    if stack_status[-9:] != "_COMPLETE":
-        logging.debug(f"STACK: {stack_name} status: {stack_status} is not complete")
-        return False
-    return True
+    if stack_status[-9:] == "_COMPLETE" or stack_status == "ROLLBACK_FAILED":
+        return True
+    logging.debug(f"STACK: {stack_name} status: {stack_status} is not complete")
+    return False
 
 
 def get_stack_outputs(stack_name, region_name=default_region) -> list:
@@ -592,7 +592,7 @@ def destroy(stack_name, region_name=default_region, auto_approve=False):
     # Get the stack status
     stack_status = get_stack_status(stack_name=stack_name, region_name=region_name)
     # If it is not in a *_COMPLETE state, bail out
-    if not stack_status or "COMPLETE" not in stack_status:
+    if not stack_is_complete(stack_name=stack_name):
         logging.error(f"STACK: {stack_name} in status {stack_status}. Cant delete now. Exiting")
         return False
     # See how many resources are deployed
