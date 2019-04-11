@@ -1,20 +1,22 @@
-# handler_template.py
-
-from crhelper import CfnResource
-import moo_helpers
-import palo_helpers
-import xml.etree.ElementTree as ET
-
-logger = moo_helpers.get_console_logger()
-# logger.setLevel('DEBUG')
-import logging
-
-# Initialise the aws cfn helper, all inputs are optional, this example shows the defaults
-helper = CfnResource(json_logging=False, log_level='DEBUG', boto_level='CRITICAL')
+# palo_static_route.py
+"""
+This lambda manages static routes in a palo alto firewall
+"""
 
 try:
     # Init code goes here
-    pass
+    from crhelper import CfnResource
+    import moo_helpers
+    import palo_helpers
+    import xml.etree.ElementTree as ET
+
+    logger = moo_helpers.get_console_logger()
+    # logger.setLevel('DEBUG')
+    import logging
+
+    # Initialise the aws cfn helper, all inputs are optional, this example shows the defaults
+    helper = CfnResource(json_logging=False, log_level='DEBUG', boto_level='CRITICAL')
+
 except Exception as e:
     helper.init_failure(e)
 

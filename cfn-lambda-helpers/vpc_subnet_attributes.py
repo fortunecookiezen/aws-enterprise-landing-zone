@@ -3,18 +3,17 @@ This module creates returns the Cidr String from a deployed EC2::Subnet
 as of this writing (2019-04-09), the EC2::Subnet resource does not return the Cidr as an attibrute
 """
 
-from crhelper import CfnResource
-import boto3
-import moo_helpers
-
-logger = moo_helpers.get_console_logger()
-
-# Initialise the aws cfn helper, all inputs are optional, this example shows the defaults
-helper = CfnResource(json_logging=False, log_level='DEBUG', boto_level='CRITICAL')
 
 try:
     # Init code goes here
-    pass
+    from crhelper import CfnResource
+    import boto3
+    import moo_helpers
+
+    logger = moo_helpers.get_console_logger()
+
+    # Initialise the aws cfn helper, all inputs are optional, this example shows the defaults
+    helper = CfnResource(json_logging=False, log_level='DEBUG', boto_level='CRITICAL')
 except Exception as e:
     helper.init_failure(e)
 

@@ -1,16 +1,19 @@
-# handler_template.py
-
-from crhelper import CfnResource
-import boto3
-import moo_helpers
-logger = moo_helpers.get_console_logger()
-
-# Initialise the aws cfn helper, all inputs are optional, this example shows the defaults
-helper = CfnResource(json_logging=False, log_level='DEBUG', boto_level='CRITICAL')
+# vpc_tgw_attributes
+"""
+This lambda gets more details about a transit gateway than the cfn resource returns.
+Specifically, it returns the main route table for a tgw so that routes can be added to it
+"""
 
 try:
     # Init code goes here
-    pass
+    from crhelper import CfnResource
+    import boto3
+    import moo_helpers
+    logger = moo_helpers.get_console_logger()
+
+    # Initialise the aws cfn helper, all inputs are optional, this example shows the defaults
+    helper = CfnResource(json_logging=False, log_level='DEBUG', boto_level='CRITICAL')
+
 except Exception as e:
     helper.init_failure(e)
 

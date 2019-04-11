@@ -55,6 +55,8 @@ functions:
     handler: vpc_tgw_attributes.handler
   VpcSubnetAttributes:
     handler: vpc_subnet_attributes.handler
+  SubnetIpGenerator:
+    handler: subnet_ip_generator.handler
 
 resources:
   Description: Cloudformation helper functions
@@ -90,3 +92,13 @@ resources:
           - '-'
           - - !Ref 'AWS::StackName'
             - VpcSubnetAttributes
+    SubnetIpGeneratorLambdaFunctionArn:
+      Description: Function that returns an IP address given a cidr block and position
+      Value: !GetAtt
+        - SubnetIpGeneratorLambdaFunction
+        - Arn
+      Export:
+        Name: !Join
+          - '-'
+          - - !Ref 'AWS::StackName'
+            - SubnetIpGenerator
