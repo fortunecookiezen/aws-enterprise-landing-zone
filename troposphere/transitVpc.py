@@ -1,13 +1,13 @@
-from troposphere import Parameter, Output, Template, Export
+from troposphere import Template, Parameter, Output, Export
 from troposphere import Cidr, Join, GetAtt, Ref, Tags, GetAZs, Select, ImportValue, Base64
 from troposphere import FindInMap
 import troposphere.ec2 as ec2
 import troposphere.iam as iam
-from troposphere.cloudformation import AWSCustomObject
 import boto3
 import logging
 import sys
 from awacs.aws import Action, Allow, PolicyDocument, Principal, Statement
+import cfn_custom_resources
 
 
 def get_template():
@@ -31,19 +31,6 @@ def get_template():
     #web_cidrs.append("192.168.0.0/24")
     #web_cidrs.append("192.168.1.0/24")
 
-    ######################################
-    # Lambda Helper
-
-    # Custom Resource
-    # TODO: add this to a local module that gets imported.
-    class VpcTgwRouteLambda(AWSCustomObject):
-        resource_type = "Custom::CustomResource"
-        props = {
-            'ServiceToken': (str, True),
-            'DestinationCidrBlock': (str, True),
-            'TransitGatewayId': (str, True),
-            'RouteTableId': (str, True)
-        }
 
     #######################################
     # Parameters - Environment Configuration
@@ -104,7 +91,6 @@ def get_template():
             MinLength=1,
             MaxLength=255,
             AllowedPattern="^[a-zA-Z][-a-zA-Z0-9]*$",
-            Default="stack-lambdaHelpers"
         )
     )
     template.add_parameter_to_group(lambda_helpers_stack, group_name)
@@ -194,7 +180,7 @@ def get_template():
         ec2.VPC(
             "vpc",
             CidrBlock=Ref(vpc_cidr),
-            Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "vpc"]))
+            Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "transit", "vpc"]))
         )
     )
 
@@ -219,15 +205,17 @@ def get_template():
     # Subnets
 
     subnets = {}
+    subnet_attrs = {}
     sn_count = len(azs) * len(zones)
     count = 0
     az_count = 0
     for az in azs:
         subnets[az] = {}
+        subnet_attrs[az] = {}
         for zone in zones:
-            MapPublicIpOnLaunch = False
+            map_public_ip_on_launch = False
             if zone == "dmz" or zone == "bastion":
-                MapPublicIpOnLaunch = True
+                map_public_ip_on_launch = True
             subnet = template.add_resource(
                 ec2.Subnet(
                     "subnet" + zone.capitalize() + az.capitalize(),
@@ -235,11 +223,20 @@ def get_template():
                     CidrBlock=Select(count, Cidr(Ref(vpc_cidr), sn_count, 8)),
                     AvailabilityZone=Select(az_count % 2, GetAZs(Ref("AWS::Region"))),
                     VpcId=Ref(vpc),
-                    MapPublicIpOnLaunch=MapPublicIpOnLaunch,
+                    MapPublicIpOnLaunch=map_public_ip_on_launch,
                     Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "sn", zone, az]))
                 )
             )
             subnets[az][zone] = subnet
+            # Create a subnet attributes custom object (so that we can get the derived subnet cidr)
+            subnet_attr = template.add_resource(
+                cfn_custom_resources.VpcSubnetAttributesLambda(
+                    "subnetAttrs" + zone.capitalize() + az.capitalize(),
+                    ServiceToken=ImportValue(Join("-", [Ref(lambda_helpers_stack), "VpcSubnetAttributes"])),
+                    SubnetId=Ref(subnet),
+                )
+            )
+            subnet_attrs[az][zone] = subnet_attr
             count += 1
         az_count += 1
 
@@ -258,14 +255,23 @@ def get_template():
         )
         tgws[zone] = tgw
 
-        # Create a transit gateway route table
-        tgw_rte_tble = template.add_resource(
-            ec2.TransitGatewayRouteTable(
-                "tgwRteTable" + zone.capitalize(),
+        # Create a transit Gateway Attributes custom resource
+        tgw_attrs = template.add_resource(
+            cfn_custom_resources.VpcTgwAttributesLambda(
+                "tgwAttrs" + zone.capitalize(),
+                ServiceToken=ImportValue(Join("-", [Ref(lambda_helpers_stack), "VpcTgwAttributes"])),
                 TransitGatewayId=Ref(tgw),
-                Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "tgwRteTbl", zone]))
             )
         )
+
+        # Create a transit gateway route table
+        #tgw_rte_tble = template.add_resource(
+        #    ec2.TransitGatewayRouteTable(
+        #        "tgwRteTable" + zone.capitalize(),
+        #        TransitGatewayId=Ref(tgw),
+        #        Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "tgwRteTbl", zone]))
+        #    )
+        #)
 
         # Attach transit the gateway to all subnets (azs) that have this zone
         subnet_ids = []
@@ -281,21 +287,21 @@ def get_template():
         )
 
         # Propagate network interface to route table
-        tgw_prop = template.add_resource(
-            ec2.TransitGatewayRouteTablePropagation(
-                "tgwPropagate" + zone.capitalize(),
-                TransitGatewayAttachmentId=Ref(tgw_attach),
-                TransitGatewayRouteTableId=Ref(tgw_rte_tble)
-            )
-        )
+        #tgw_prop = template.add_resource(
+        #    ec2.TransitGatewayRouteTablePropagation(
+        #        "tgwPropagate" + zone.capitalize(),
+        #        TransitGatewayAttachmentId=Ref(tgw_attach),
+        #        TransitGatewayRouteTableId=Ref(tgw_rte_tble)
+        #    )
+        #)
 
-        # Add a default route to the transit gateway to the palo vpc
+        # Add a default route to the transit gateway's default Route Table to the palo vpc
         tgw_route = template.add_resource(
             ec2.TransitGatewayRoute(
                 "tgwDefaultRoute" + zone.capitalize(),
                 DestinationCidrBlock="0.0.0.0/0",
                 TransitGatewayAttachmentId=Ref(tgw_attach),
-                TransitGatewayRouteTableId=Ref(tgw_rte_tble)
+                TransitGatewayRouteTableId=GetAtt(tgw_attrs, 'AssociationDefaultRouteTableId')
             )
         )
 
@@ -342,17 +348,16 @@ def get_template():
             Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), "paloif", "secgrp"]))
         )
     )
-    for port in palo_if_ports:
-        template.add_resource(
-            ec2.SecurityGroupIngress(
-                "sgRulePaloIf" + str(port),
-                IpProtocol='tcp',
-                FromPort=port,
-                ToPort=port,
-                GroupId=GetAtt(sg_palo_if, "GroupId"),
-                CidrIp='0.0.0.0/0'
-            )
+    template.add_resource(
+        ec2.SecurityGroupIngress(
+            "sgRulePaloIf" + str(port),
+            IpProtocol='-1',
+            FromPort=0,
+            ToPort=65535,
+            GroupId=GetAtt(sg_palo_if, "GroupId"),
+            CidrIp='0.0.0.0/0'
         )
+    )
 
     # Bastion Security Group
     if create_bastion:
@@ -442,10 +447,13 @@ def get_template():
             SecurityGroupIds=[Ref(sg_palo_mgt)],
             KeyName=Ref(palo_ssh_keyname),
             UserData=Base64(Join("", ["vmseries-bootstrap-aws-s3bucket=", Ref(palo_bootstrap_bucket)])),
-            SourceDestCheck=False,
             IamInstanceProfile=Ref(profile_palo_inst),
             DependsOn=profile_palo_inst.title,
             SubnetId=Ref(subnets[az]["trusted"]),
+            # Set IP address to 11th IP in subnet Cidr
+            # cidr function cant return a /32
+            #PrivateIpAddress=Select(11, Cidr(GetAtt(subnet_attrs[az]['trusted'], 'CidrBlock'), 20, 1)),
+            SourceDestCheck=True,
             # Define root ebs volume manually so that we can set DeleteOnTermination = True
             BlockDeviceMappings=[
                 ec2.BlockDeviceMapping(
@@ -471,6 +479,9 @@ def get_template():
                         SourceDestCheck=False,
                         GroupSet=[GetAtt(sg_palo_if, "GroupId")],
                         DependsOn=palo_inst.title,
+                        # Set IP address to 10th IP in subnet Cidr
+                        # cidr function cant return a /32
+                        #PrivateIpAddress=Select(10, Cidr(GetAtt(subnet_attrs[az][zone], 'CidrBlock'), 20, 0)),
                         Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), zone, az, "eni"]))
                     )
                 )
@@ -597,7 +608,7 @@ def get_template():
                     # Include string-ified Cidr in the route resource name because there is no route_update() method in AWS.
                     # Doing this forces delete/create anytime the route's cidr changes
                     + cidr.replace('.', 'x').replace('/', 'z'),
-                    ServiceToken=ImportValue(Join("-", [Ref(lambda_helpers_stack), "VpcTgwRouteLambdaArn"])),
+                    ServiceToken=ImportValue(Join("-", [Ref(lambda_helpers_stack), "VpcTgwRoute"])),
                     DestinationCidrBlock=cidr,
                     TransitGatewayId=Ref(tgws[zone]),
                     RouteTableId=Ref(rtb),
@@ -640,12 +651,12 @@ def get_template():
         count = 0
         for cidr in pvt_cidrs:
             rte = template.add_resource(
-                VpcTgwRouteLambda(
+                cfn_custom_resources.VpcTgwRouteLambda(
                     "Route" + zone.capitalize() + az.capitalize()
                     # Include Cidr in resource name because there is no route_update() method in AWS.
                     # Doing this forces delete/create every time the route's cidr changes
                     + cidr.replace('.', 'x').replace('/', 'z'),
-                    ServiceToken=ImportValue(Join("-", [Ref(lambda_helpers_stack), "VpcTgwRouteLambdaArn"])),
+                    ServiceToken=ImportValue(Join("-", [Ref(lambda_helpers_stack), "VpcTgwRoute"])),
                     DestinationCidrBlock=cidr,
                     TransitGatewayId=Ref(tgws[zone]),
                     RouteTableId=Ref(rtb),
