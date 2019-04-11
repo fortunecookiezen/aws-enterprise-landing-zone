@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <config version="9.0.0" urldb="paloaltonetworks">
   <mgt-config>
     <users>
@@ -13,10 +14,10 @@
     </users>
   </mgt-config>
   <shared>
-    <application></application>
-    <application-group></application-group>
-    <service></service>
-    <service-group></service-group>
+    <application/>
+    <application-group/>
+    <service/>
+    <service-group/>
     <botnet>
       <configuration>
         <http>
@@ -107,11 +108,12 @@
                   <enabled>no</enabled>
                 </ndp-proxy>
                 <dhcp-client>
-                  <create-default-route>no</create-default-route>
+                  <create-default-route>yes</create-default-route>
                 </dhcp-client>
                 <lldp>
                   <enable>no</enable>
                 </lldp>
+                <interface-management-profile>allow_ping</interface-management-profile>
               </layer3>
             </entry>
             <entry name="ethernet1/3">
@@ -127,7 +129,7 @@
                   <enabled>no</enabled>
                 </ndp-proxy>
                 <dhcp-client>
-                  <create-default-route>no</create-default-route>
+                  <create-default-route>yes</create-default-route>
                 </dhcp-client>
                 <lldp>
                   <enable>no</enable>
@@ -144,6 +146,11 @@
               <action>wait-recover</action>
             </entry>
           </monitor-profile>
+          <interface-management-profile>
+            <entry name="allow_ping">
+              <ping>yes</ping>
+            </entry>
+          </interface-management-profile>
         </profiles>
         <ike>
           <crypto-profiles>
@@ -347,26 +354,29 @@
             </interface>
             <ecmp>
               <algorithm>
-                <ip-modulo></ip-modulo>
+                <ip-modulo/>
               </algorithm>
             </ecmp>
             <routing-table>
               <ip>
                 <static-route>
                   <entry name="10-net">
+                    <bfd>
+                      <profile>None</profile>
+                    </bfd>
                     <path-monitor>
                       <enable>no</enable>
                       <failure-condition>any</failure-condition>
                       <hold-time>2</hold-time>
                     </path-monitor>
-                    <bfd>
-                      <profile>None</profile>
-                    </bfd>
                     <interface>ethernet1/2</interface>
                     <metric>10</metric>
                     <destination>10.0.0.0/8</destination>
+                    <nexthop>
+                      <ip-address>${trusted_subnet_router_ip}</ip-address>
+                    </nexthop>
                     <route-table>
-                      <unicast></unicast>
+                      <unicast/>
                     </route-table>
                   </entry>
                   <entry name="172-net">
@@ -375,6 +385,9 @@
                       <failure-condition>any</failure-condition>
                       <hold-time>2</hold-time>
                     </path-monitor>
+                    <nexthop>
+                      <ip-address>${trusted_subnet_router_ip}</ip-address>
+                    </nexthop>
                     <bfd>
                       <profile>None</profile>
                     </bfd>
@@ -382,7 +395,7 @@
                     <metric>10</metric>
                     <destination>172.16.0.0/12</destination>
                     <route-table>
-                      <unicast></unicast>
+                      <unicast/>
                     </route-table>
                   </entry>
                   <entry name="192-net">
@@ -391,6 +404,9 @@
                       <failure-condition>any</failure-condition>
                       <hold-time>2</hold-time>
                     </path-monitor>
+                    <nexthop>
+                      <ip-address>${trusted_subnet_router_ip}</ip-address>
+                    </nexthop>
                     <bfd>
                       <profile>None</profile>
                     </bfd>
@@ -398,7 +414,7 @@
                     <metric>10</metric>
                     <destination>192.168.0.0/16</destination>
                     <route-table>
-                      <unicast></unicast>
+                      <unicast/>
                     </route-table>
                   </entry>
                 </static-route>
@@ -465,8 +481,8 @@
       </deviceconfig>
       <vsys>
         <entry name="vsys1">
-          <application></application>
-          <application-group></application-group>
+          <application/>
+          <application-group/>
           <zone>
             <entry name="dmz">
               <network>
@@ -490,9 +506,9 @@
               </network>
             </entry>
           </zone>
-          <service></service>
-          <service-group></service-group>
-          <schedule></schedule>
+          <service/>
+          <service-group/>
+          <schedule/>
           <rulebase>
             <security>
               <rules>

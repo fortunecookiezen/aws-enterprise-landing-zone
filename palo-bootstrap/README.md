@@ -12,18 +12,21 @@ cp $PA_LOCAL_FILE $TEMPFILE
 xq -x --arg PHASH $PHASH '.config["mgt-config"].users.entry.phash = $PHASH' $TEMPFILE > $PA_LOCAL_FILE
 ```
 
+The bootstrap.xml file uses terraform template_file type to update variables.
+the Trusted Subnet Router is defined as a variable ${trusted_subnet_router_ip)
+
 #### Deployment
 This terraform template deploys a s3 bucket, the required folders and bootstrap files to boot a palo instance
 
 To deploy
 ```bash
 terraform init
-terrafrom plan
-terraform apply
+terrafrom plan -var 'trusted_subnet_router_ip=xx.xx.xx.xx'
+terraform apply -var 'trusted_subnet_router_ip=xx.xx.xx.xx'
 ```
 
 ## Configuration
-The bootstap configuration was created by configuring a fresh palo instance the way we want, then exporting the running
+The bootstrap configuration was created by configuring a fresh palo instance the way we want, then exporting the running
 config to `bootstrap/config/bootstrap.xml`
 
 The following changes were made to create the current bootstrap.xml
