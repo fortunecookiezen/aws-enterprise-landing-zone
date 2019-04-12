@@ -1,14 +1,15 @@
 # handler_template.py
 
 
+from crhelper import CfnResource
+# Initialise the aws cfn helper, all inputs are optional, this example shows the defaults
+helper = CfnResource(json_logging=False, log_level='DEBUG', boto_level='CRITICAL')
+
 try:
     # Init code goes here
-    from crhelper import CfnResource
     import moo_helpers
     logger = moo_helpers.get_console_logger()
 
-    # Initialise the aws cfn helper, all inputs are optional, this example shows the defaults
-    helper = CfnResource(json_logging=False, log_level='DEBUG', boto_level='CRITICAL')
 except Exception as e:
     helper.init_failure(e)
 

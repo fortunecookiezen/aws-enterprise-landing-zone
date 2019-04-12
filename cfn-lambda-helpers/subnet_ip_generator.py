@@ -5,16 +5,17 @@ This is nessesary because the cloudformation Fn::Cidr cannot generate a single I
 This is useful if you need to get the 1st IP (i.e. the router) from a derived cidr range
 """
 
+from crhelper import CfnResource
+# Initialise the aws cfn helper, all inputs are optional, this example shows the defaults
+helper = CfnResource(json_logging=False, log_level='DEBUG', boto_level='CRITICAL')
+
 try:
     # Init code goes here
-    from crhelper import CfnResource
     import ipaddress
     import moo_helpers
 
     logger = moo_helpers.get_console_logger()
 
-    # Initialise the aws cfn helper, all inputs are optional, this example shows the defaults
-    helper = CfnResource(json_logging=False, log_level='DEBUG', boto_level='CRITICAL')
 
 except Exception as e:
     helper.init_failure(e)

@@ -3,9 +3,12 @@
 This lambda manages static routes in a palo alto firewall
 """
 
+# Initialise the aws cfn helper, all inputs are optional, this example shows the defaults
+from crhelper import CfnResource
+helper = CfnResource(json_logging=False, log_level='DEBUG', boto_level='CRITICAL')
+
 try:
     # Init code goes here
-    from crhelper import CfnResource
     import moo_helpers
     import palo_helpers
     import xml.etree.ElementTree as ET
@@ -14,8 +17,6 @@ try:
     # logger.setLevel('DEBUG')
     import logging
 
-    # Initialise the aws cfn helper, all inputs are optional, this example shows the defaults
-    helper = CfnResource(json_logging=False, log_level='DEBUG', boto_level='CRITICAL')
 
 except Exception as e:
     helper.init_failure(e)
