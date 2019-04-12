@@ -3,16 +3,16 @@ import cfn_palo_resources
 import cfn_custom_resources
 
 
-pvt_cidrs = ['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
 azs = ['a', 'b']
 azs = ['a']
 
 trusted_palo_interface = 'ethernet1/2'
+pvt_cidrs = ['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
 
 
 def get_template():
     template = Template()
-    template.description = "Static Routes for Palo Alto"
+    template.description = "Static Routes for Palo Alto Transit VPC"
 
     group_name = "Environment Configuration"
 
