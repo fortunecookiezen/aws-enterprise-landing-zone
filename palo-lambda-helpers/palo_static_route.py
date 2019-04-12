@@ -209,10 +209,11 @@ def delete_static_route(hostname, api_key, destination, virtual_router='default'
 def create(event, context):
     logger.info("Got Create")
     palo_user = event['ResourceProperties']['PaloUser']
-    palo_password = event['ResourceProperties']['PaloPasswordUser']
+    palo_password = event['ResourceProperties']['PaloPassword']
     palo_mgt_ip = event['ResourceProperties']['PaloMgtIp']
     next_hop_ip = event['ResourceProperties']['NextHopIp']
     destination_cidr_block = event['ResourceProperties']['DestinationCidrBlock']
+    interface = event['ResourceProperties']['Interface']
     virtual_router = event['ResourceProperties']['VirtualRouter']
 
     try:
@@ -223,7 +224,7 @@ def create(event, context):
         return False
 
     set_static_route(hostname=palo_mgt_ip, api_key=api_key, destination=destination_cidr_block,
-                     next_hop=next_hop_ip, virtual_router=virtual_router)
+                     next_hop=next_hop_ip, virtual_router=virtual_router, interface=interface)
 
 
 @helper.update
@@ -237,9 +238,8 @@ def update(event, context):
 def delete(event, context):
     logger.info("Got Delete")
     palo_user = event['ResourceProperties']['PaloUser']
-    palo_password = event['ResourceProperties']['PaloPasswordUser']
+    palo_password = event['ResourceProperties']['PaloPassword']
     palo_mgt_ip = event['ResourceProperties']['PaloMgtIp']
-    next_hop_ip = event['ResourceProperties']['NextHopIp']
     destination_cidr_block = event['ResourceProperties']['DestinationCidrBlock']
     virtual_router = event['ResourceProperties']['VirtualRouter']
 
@@ -250,8 +250,8 @@ def delete(event, context):
         logging.error(e)
         return False
 
-    set_static_route(hostname=palo_mgt_ip, api_key=api_key, destination=destination_cidr_block,
-                     next_hop=next_hop_ip, virtual_router=virtual_router)
+    delete_static_route(hostname=palo_mgt_ip, api_key=api_key, destination=destination_cidr_block,
+                        virtual_router=virtual_router)
 
 
 def handler(event, context):

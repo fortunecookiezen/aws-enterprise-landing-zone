@@ -11,6 +11,7 @@ class PaloStaticRoute(AWSCustomObject):
         'NextHopIp': (str, True),
         'PaloMgtIp': (str, True),
         'PaloUser': (str, True),
+        'Interface': (str, True),
         'PaloPassword': (str, True)
     }
 

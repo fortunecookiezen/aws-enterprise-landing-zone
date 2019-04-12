@@ -143,6 +143,7 @@ def get_template():
                     NextHopIp=GetAtt(subnet_router_ip, "IpAddress"),
                     PaloMgtIp=ImportValue(Join("-", [Ref(transit_vpc_stack), "palo" + az.capitalize() + "mgtIp"])),
                     PaloUser=Ref(palo_user),
+                    Interface=trusted_palo_interface,
                     PaloPassword=Ref(palo_pass),
                 )
             )
