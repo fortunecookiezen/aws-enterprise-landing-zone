@@ -193,7 +193,7 @@ def get_template():
             # Include Cidr in resource name because there is no route_update() method in AWS.
             # Doing this forces delete/create every time the route's cidr changes
             + cidr.replace('.', 'x').replace('/', 'z'),
-            ServiceToken=ImportValue(Join("-", [Ref(lambda_helpers_stack), "VpcTgwRouteLambdaArn"])),
+            ServiceToken=ImportValue(Join("-", [Ref(lambda_helpers_stack), "VpcTgwRoute"])),
             DestinationCidrBlock=cidr,
             TransitGatewayId=ImportValue(Join("-", [Ref(palo_stack), "tgwId", Ref(zone)])),
             RouteTableId=Ref(rtb),
