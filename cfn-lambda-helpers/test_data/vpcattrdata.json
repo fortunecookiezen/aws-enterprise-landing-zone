@@ -1,0 +1,13 @@
+{
+  'RequestType': 'Create',
+  'ServiceToken': 'arn:aws:lambda:us-west-2:406661003421:function:cfn-lambda-helpers-prd-VpcTgwAttributes:2',
+  'ResponseURL': 'https://cloudformation-custom-resource-response-uswest2.s3-us-west-2.amazonaws.com/arn%3Aaws%3Acloudformation%3Aus-west-2%3A406661003421%3Astack/transitVpc/aa234c40-5be1-11e9-b09f-02c5b84a8036%7CtgwAttrsWeb%7C455ba21a-e568-49b7-bff7-be9e4c18cd46?AWSAccessKeyId=AKIA54RCMT6SNETN33FV&Expires=1554943388&Signature=t%2FBkdnH1ALxWuESHEB7GBBGzNFY%3D',
+  'StackId': 'arn:aws:cloudformation:us-west-2:406661003421:stack/transitVpc/aa234c40-5be1-11e9-b09f-02c5b84a8036',
+  'RequestId': '455ba21a-e568-49b7-bff7-be9e4c18cd46',
+  'LogicalResourceId': 'tgwAttrsWeb',
+  'ResourceType': 'Custom::CustomResource',
+  'ResourceProperties': {
+    'ServiceToken': 'arn:aws:lambda:us-west-2:406661003421:function:cfn-lambda-helpers-prd-VpcTgwAttributes:2',
+    'TransitGatewayId': 'tgw-0c57bf1bf986fb7cd'
+  }
+}

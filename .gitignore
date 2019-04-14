@@ -13,3 +13,9 @@ enterpriselz.code-workspace
 
 # PyCharm
 .idea
+
+# Python
+__pycache__
+
+# npm modules
+node_modules

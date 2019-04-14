@@ -11,6 +11,7 @@ begins = "*"
 boto3-type-annotations-with-docs = "*"
 troposphere = "*"
 pyyaml = "*"
+tropoform = "*"
 
 [requires]
 python_version = "3.6"
