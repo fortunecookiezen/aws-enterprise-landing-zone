@@ -170,7 +170,7 @@ def set_static_route(hostname, api_key, destination, next_hop, interface, virtua
 
     # Commit the change
     if palo_helpers.commit(hostname=hostname, api_key=api_key, message=f"created static route {route_name}"):
-        logger.error(f"Successfully committed. returning route_name: {route_name}")
+        logger.info(f"Successfully committed. returning route_name: {route_name}")
         return route_name
     else:
         return False
@@ -212,6 +212,7 @@ def delete_static_route(hostname, api_key, destination, virtual_router='default'
 
     # Commit the change
     if palo_helpers.commit(hostname=hostname, api_key=api_key, message=f"deleted static route {route_name}"):
+        logger.info(f"Successfully committed. returning route_name: {route_name}")
         return route_name
     else:
         return False
@@ -235,8 +236,8 @@ def create(event, context):
         logging.error(e)
         return False
 
-    set_static_route(hostname=palo_mgt_ip, api_key=api_key, destination=destination_cidr_block,
-                     next_hop=next_hop_ip, virtual_router=virtual_router, interface=interface)
+    return set_static_route(hostname=palo_mgt_ip, api_key=api_key, destination=destination_cidr_block,
+                            next_hop=next_hop_ip, virtual_router=virtual_router, interface=interface)
 
 
 @helper.update
@@ -263,8 +264,8 @@ def delete(event, context):
         return False
 
     # TODO determine if we should be deleting routes by destination cidr,,, or should we delete by route name.
-    delete_static_route(hostname=palo_mgt_ip, api_key=api_key, destination=destination_cidr_block,
-                        virtual_router=virtual_router)
+    return delete_static_route(hostname=palo_mgt_ip, api_key=api_key, destination=destination_cidr_block,
+                               virtual_router=virtual_router)
 
 
 def handler(event, context):
