@@ -23,7 +23,8 @@ except Exception as e:
     helper.init_failure(e)
 
 
-def get_matching_route_name(hostname, api_key, destination, next_hop, interface, virtual_router='default') -> Optional[str]:
+def get_matching_route_name(hostname, api_key, destination, next_hop,
+                            interface, virtual_router='default') -> Optional[str]:
     """
     Test to see if a matching route exists on the virtual router
     :param string hostname: the IP or hostname for the palo management interface
@@ -38,12 +39,23 @@ def get_matching_route_name(hostname, api_key, destination, next_hop, interface,
                  f"next_hop: {next_hop}, interface: {interface}")
     xpath = f"/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/" \
         f"entry[@name='{virtual_router}']/routing-table/ip/static-route/entry"
-    response = palo_helpers.panGetConfig(hostname=hostname, api_key=api_key, xpath=xpath)
-    for entry in palo_helpers.XmlDictConfig(ET.XML(response))['result']['entry']:
+    logger.debug(f"XPATH: {xpath}")
+    response_xml = palo_helpers.panGetConfig(hostname=hostname, api_key=api_key, xpath=xpath)
+    result_dict = palo_helpers.XmlDictConfig(ET.XML(response_xml))
+    # if no static routes exits, the library returns None
+    if not result_dict['result']:
+        return False
+    entries = result_dict['result']['entry']
+    # If only one static route exists, the library returns a dict. If multiples exist, it returns a list.
+    if isinstance(entries, palo_helpers.XmlDictConfig):
+        entries = [entries]  # put the single entry dict into a list
+    logger.debug(f"ENTRIES: {entries}")
+    # Now we can safely iterate over a list of entries, even if we only got one
+    for entry in entries:
         if 'ip-address' not in entry['nexthop']:
             pass
-        if destination == entry['destination'] and next_hop == entry['nexthop']['ip-address'] and interface == entry[
-            'interface']:
+        if destination == entry['destination'] and next_hop == entry['nexthop']['ip-address'] and \
+                interface == entry['interface']:
             logger.debug(f"found matching route. Returning: {entry['name']}")
             return entry['name']
     logger.debug(f"no matching route found. Returning False")
@@ -62,8 +74,18 @@ def static_route_exists(hostname, api_key, destination, virtual_router='default'
     static_route_xpath = f"/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/" \
         f"entry[@name='{virtual_router}']/routing-table/ip/static-route"
     xpath = static_route_xpath + '/entry'
-    response = palo_helpers.panGetConfig(hostname=hostname, api_key=api_key, xpath=xpath)
-    for entry in palo_helpers.XmlDictConfig(ET.XML(response))['result']['entry']:
+    response_xml = palo_helpers.panGetConfig(hostname=hostname, api_key=api_key, xpath=xpath)
+    result_dict = palo_helpers.XmlDictConfig(ET.XML(response_xml))
+    # if no static routes exits, the library returns None
+    if not result_dict['result']:
+        # No static routes exist
+        return False
+    entries = result_dict['result']['entry']
+    # If only one static route exists, the library returns a dict. If multiples exist, it returns a list.
+    if isinstance(entries, palo_helpers.XmlDictConfig):
+        entries = [result_dict['result']['entry']]  # put the single entry dict into a list
+    # Now we can safely iterate over a list of entries, even if we only got one
+    for entry in entries:
         logger.debug(f"ENTRY: {entry}")
         if destination == entry['destination']:
             # found a route with the same destination

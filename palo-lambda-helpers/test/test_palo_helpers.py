@@ -71,7 +71,9 @@ class TestPaloHelpers(unittest.TestCase):
             next_hop=self.existing_route_next_hop,
             interface=self.existing_route_interface,
             )
+        # if route 10-net route exist, uncomment the following
         self.assertEqual(self.existing_route_name, result)
+        #self.assertFalse(result)
 
     def test_static_route_exists(self):
         # palo_static_route.static_route_exists(hostname, api_key, destination, virtual_router='default'):
@@ -80,7 +82,9 @@ class TestPaloHelpers(unittest.TestCase):
             virtual_router=self.virtual_router,
             destination=self.existing_route_destination
         )
+        # if route 10-net route doesnt exist, uncomment the following
         self.assertTrue(result)
+        #self.assertFalse(result)
 
     def test_set_delete_static_route(self):
         result = palo_static_route.set_static_route(
