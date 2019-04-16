@@ -882,7 +882,11 @@ def commit(hostname, api_key, message) -> bool:
     result_dict = XmlDictConfig(ET.XML(result_xml))
     if result_dict['status'] != 'success':
         logging.error(f"Failed to comment config. Returning False")
-        logging.error(f"{result_dict}")
+        logging.error(f"RESULT_DICT: {result_dict}")
+        return False
+    if 'job' not in result_dict['result']:
+        logging.error(f"commit did not return a job number. Returning False")
+        logging.error(f"RESULT_DICT: {result_dict}")
         return False
     job_number = result_dict['result']['job']
 
