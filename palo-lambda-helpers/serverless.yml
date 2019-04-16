@@ -32,6 +32,10 @@ provider:
 functions:
   PaloStaticRoute:
     handler: palo_static_route.handler
+  PaloService:
+    handler: palo_service.handler
+  PaloSecurityPolicy:
+    handler: palo_security_policy.handler
 
 resources:
   Description: Palo Alto Helper functions for stack ${opt:paloStackName}
@@ -58,5 +62,27 @@ resources:
            !Join
              - '-'
              - - !Ref 'AWS::StackName'
-               - VpcSubnetAttributes
+               - PaloStaticRoute
+     paloServiceLambdaFunctionArn:
+       Description: ARN of the Palo Service Helper Function
+       Value: !GetAtt
+         - PaloServiceLambdaFunction
+         - Arn
+       Export:
+         Name:
+           !Join
+           - '-'
+           - - !Ref 'AWS::StackName'
+             - PaloService
+     paloSecurityPolicyFunctionArn:
+       Description: ARN of the Palo Security Policy Helper Function
+       Value: !GetAtt
+         - PaloSecurityPolicyLambdaFunction
+         - Arn
+       Export:
+         Name:
+           !Join
+           - '-'
+           - - !Ref 'AWS::StackName'
+             - PaloSecurityPolicy
 

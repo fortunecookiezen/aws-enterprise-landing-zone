@@ -137,7 +137,7 @@ def get_template():
             palo_route = template.add_resource(
                 cfn_palo_resources.PaloStaticRoute(
                     "paloRoute" + az.capitalize() + pvt_cidr.replace(".", "x").replace("/", "y"),
-                    ServiceToken=ImportValue(Join("-", [Ref(palo_helpers_stack), "VpcSubnetAttributes"])),
+                    ServiceToken=ImportValue(Join("-", [Ref(palo_helpers_stack), "PaloStaticRoute"])),
                     DestinationCidrBlock=pvt_cidr,
                     VirtualRouter=Ref(palo_virtual_router),
                     NextHopIp=GetAtt(subnet_router_ip, "IpAddress"),

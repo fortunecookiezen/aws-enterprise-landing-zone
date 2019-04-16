@@ -20,3 +20,4 @@ def get_console_logger():
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
     return logger
+

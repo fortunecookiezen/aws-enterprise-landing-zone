@@ -8,6 +8,9 @@ import xml
 import boto3
 import sys
 import re
+import logging
+import time
+import xml.etree.ElementTree as ET
 
 
 class XmlListConfig(list):
@@ -844,3 +847,89 @@ def deleteIkeGateway(hostname, api_key, ikeName):
         ikeName)
     result = panDelConfig(hostname, api_key, xpath)
     return result
+
+
+def get_job_status(hostname, api_key, job_number) -> dict:
+    """
+    Get commit status
+    :param string hostname:
+    :param string api_key:
+    :param string job_number:
+    :return: dict with the following keys: {'tenq', 'tdeq', 'id', 'user', 'type', 'status', 'queued', 'stoppable',
+        'result', 'tfin', 'description', 'positionInQ', 'progress', 'details', 'warnings'}
+    """
+    logging.debug(f"checking commit status for job {job_number}")
+    command = f"<show><jobs><id>{job_number}</id></jobs></show>"
+    result_xml = panOpCmd(hostname=hostname, api_key=api_key, cmd=command)
+    result_dict = XmlDictConfig(ET.XML(result_xml))
+    if result_dict['status'] != 'success':
+        logging.error(f"unable to get job status for job: {job_number}")
+        logging.debug(f"JOB STATUS: {result_dict}")
+        logging.debug(f"DETAILS: {result_dict['result']['job']['details']['line']}")
+    return result_dict['result']['job']
+
+
+def commit(hostname, api_key, message) -> bool:
+    """
+    Commits pending changes and waits 5 mins for the commit to complete
+    :param string hostname:
+    :param string api_key:
+    :param string message: commit message
+    :return: True if successful, else false
+    """
+    logging.info(f"committing config")
+    result_xml = panCommit(hostname=hostname, api_key=api_key, message=message)
+    result_dict = XmlDictConfig(ET.XML(result_xml))
+    if result_dict['status'] != 'success':
+        logging.error(f"Failed to comment config. Returning False")
+        logging.error(f"{result_dict}")
+        return False
+    job_number = result_dict['result']['job']
+
+    # wait for the commit to complete
+    i = 1
+    job_status = get_job_status(hostname=hostname, api_key=api_key, job_number=job_number)
+    while job_status['status'] != 'FAIL' and job_status['status'] != 'FIN':
+        logging.info(f"commit job: {job_number} is in status: {job_status['status']}, progress: {job_status['progress']}%")
+        time.sleep(10)
+        job_status = get_job_status(hostname=hostname, api_key=api_key, job_number=job_number)
+        i += 1
+        if i >= 30:
+            logging.error(f"commit job {job_number} in statue {job_status['status']} after 5 mins. Returning False")
+            logging.error(f"{job_status}")
+            return False
+    if job_status['status'] == 'FIN':
+        if job_status['result'] == 'OK':
+            logging.debug(f"commit job {job_number} finished with detail {job_status['details']}")
+            if job_status['warnings']:
+                logging.warning(f"commit job {job_number} finished with warnings:")
+                for line in job_status['warnings']['line']:
+                    logging.warning(f"{line}")
+            return True
+        else:
+            logging.error(f"commit job finished but returned result {job_status['result']}. Returning False")
+            for line in job_status['details']:
+                logging.error(f"{line}")
+            logging.error(f"{job_status}")
+            return False
+    # Job FAILED
+    logging.error(f"commit job {job_number} in statue {job_status['status']}. Returning False")
+    logging.error(f"{job_status}")
+    return False
+
+
+def vsys_exists(hostname, api_key, vsys_name) -> bool:
+    """
+    Test to see if a specific vsys_name exists
+    :param hostname: IP or hostname of palo
+    :param api_key: api key to access palo
+    :param vsys_name: name of the vsys to look up (ex 'vsys1'
+    :return: bool True if exists
+    """
+    logging.debug(f"Looking for vsys_name: {vsys_name} on palo: {hostname}")
+    xpath = f"/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='{vsys_name}']"
+    response = panGetConfig(hostname=hostname, api_key=api_key, xpath=xpath)
+    if XmlDictConfig(ET.XML(response))['result']:
+        return True
+    logging.debug(f"Specified vsys: {vsys_name} does not exist on host {hostname}. Returning False")
+    return False

@@ -12,6 +12,7 @@ try:
     import moo_helpers
     import palo_helpers
     import xml.etree.ElementTree as ET
+    from typing import Optional
 
     logger = moo_helpers.get_console_logger()
     # logger.setLevel('DEBUG')
@@ -22,7 +23,7 @@ except Exception as e:
     helper.init_failure(e)
 
 
-def get_matching_route_name(hostname, api_key, destination, next_hop, interface, virtual_router='default'):
+def get_matching_route_name(hostname, api_key, destination, next_hop, interface, virtual_router='default') -> Optional[str]:
     """
     Test to see if a matching route exists on the virtual router
     :param string hostname: the IP or hostname for the palo management interface
@@ -49,7 +50,7 @@ def get_matching_route_name(hostname, api_key, destination, next_hop, interface,
     return False
 
 
-def static_route_exists(hostname, api_key, destination, virtual_router='default'):
+def static_route_exists(hostname, api_key, destination, virtual_router='default') -> Optional[str]:
     """
     Test to see if a route with matching destination exists on the virtual router
     :param string hostname: the IP or hostname for the palo management interface
@@ -63,15 +64,16 @@ def static_route_exists(hostname, api_key, destination, virtual_router='default'
     xpath = static_route_xpath + '/entry'
     response = palo_helpers.panGetConfig(hostname=hostname, api_key=api_key, xpath=xpath)
     for entry in palo_helpers.XmlDictConfig(ET.XML(response))['result']['entry']:
-        # print(entry)
+        logger.debug(f"ENTRY: {entry}")
         if destination == entry['destination']:
-            # found a route with the same destination, update it with interface and next_hop
+            # found a route with the same destination
             logger.debug(f"Found static route with existing destination. route name: {entry['name']}")
             return entry['name']
+    logger.debug(f"Did not find static route with destination: {destination}. Returning False")
     return False
 
 
-def set_static_route(hostname, api_key, destination, next_hop, interface, virtual_router='default'):
+def set_static_route(hostname, api_key, destination, next_hop, interface, virtual_router='default') -> Optional[str]:
     """
     Set Static Route
     :param string hostname: the IP or hostname for the palo management interface
@@ -145,20 +147,13 @@ def set_static_route(hostname, api_key, destination, next_hop, interface, virtua
             return False
 
     # Commit the change
-    logger.info(f"committing config")
-    result_xml = palo_helpers.panCommit(hostname=hostname, api_key=api_key,
-                                        message=f"created static route {route_name}")
-    result_dict = palo_helpers.XmlDictConfig(ET.XML(result_xml))
-    if result_dict['status'] == 'success':
-        logger.info(f"Successfully committed. Returning route_name: {route_name}")
+    if palo_helpers.commit(hostname=hostname, api_key=api_key, message=f"created static route {route_name}"):
         return route_name
     else:
-        logger.error(f"Failed to comment config. Returning False")
-        logger.error(f"{result_dict}")
         return False
 
 
-def delete_static_route(hostname, api_key, destination, virtual_router='default'):
+def delete_static_route(hostname, api_key, destination, virtual_router='default') -> Optional[str]:
     """
     Deletes a route from a palo alto virtual router with a given destination
     :param string hostname: IP or hostname of the palo management interface
@@ -193,15 +188,9 @@ def delete_static_route(hostname, api_key, destination, virtual_router='default'
         return False
 
     # Commit the change
-    logger.info(f"committing config")
-    result_xml = palo_helpers.panCommit(hostname=hostname, api_key=api_key,
-                                        message=f"deleted static route {route_name}")
-    result_dict = palo_helpers.XmlDictConfig(ET.XML(result_xml))
-    if result_dict['status'] == 'success':
+    if palo_helpers.commit(hostname=hostname, api_key=api_key, message=f"deleted static route {route_name}"):
         return route_name
     else:
-        logger.error(f"Failed to comment config. Returning False")
-        logger.error(f"{result_dict}")
         return False
 
 
