@@ -21,6 +21,12 @@ class VpcTgwAttributesLambda(AWSCustomObject):
 
 
 class VpcSubnetAttributesLambda(AWSCustomObject):
+    """
+    Returns attributes for a subnet given a SubnetId in event
+    'AvailabilityZone', 'AvailabilityZoneId', 'AvailableIpAddressCount', 'CidrBlock', 'DefaultForAz',
+    'MapPublicIpOnLaunch', 'State', 'SubnetId', 'VpcId', 'OwnerId', 'AssignIpv6AddressOnCreation',
+    'Ipv6CidrBlockAssociationSet', 'SubnetArn'
+    """
     resource_type = "Custom::CustomResource"
     props = {
         'ServiceToken': (str, True),
