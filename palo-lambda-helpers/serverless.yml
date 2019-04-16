@@ -18,6 +18,9 @@ provider:
   stage: prd
   region: us-west-2
 
+  # 10 min timout
+  timeout: 600
+
   stackTags:
     ASI: ${self:custom.ASI}
     Environment: ${self:custom.Environment}

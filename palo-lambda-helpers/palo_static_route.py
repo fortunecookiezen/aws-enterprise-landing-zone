@@ -39,7 +39,7 @@ def get_matching_route_name(hostname, api_key, destination, next_hop,
                  f"next_hop: {next_hop}, interface: {interface}")
     xpath = f"/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/" \
         f"entry[@name='{virtual_router}']/routing-table/ip/static-route/entry"
-    logger.debug(f"XPATH: {xpath}")
+    #logger.debug(f"XPATH: {xpath}")
     response_xml = palo_helpers.panGetConfig(hostname=hostname, api_key=api_key, xpath=xpath)
     result_dict = palo_helpers.XmlDictConfig(ET.XML(response_xml))
     # if no static routes exits, the library returns None
@@ -135,9 +135,9 @@ def set_static_route(hostname, api_key, destination, next_hop, interface, virtua
         result_dict = palo_helpers.XmlDictConfig(ET.XML(result_xml))
         # if result_dict['response']['status'] == 'success':
         if result_dict['status'] == 'success':
-            logger.info(f"successfully updated static route {route_name}. Returning route_name")
+            logger.info(f"successfully updated static route {route_name}.")
         else:
-            logger.error(f"failed to update static route: {route_name}. Returning error")
+            logger.error(f"failed to update static route: {route_name}. Returning False")
             logger.error(f"{result_dict}")
             return False
     else:
@@ -160,7 +160,7 @@ def set_static_route(hostname, api_key, destination, next_hop, interface, virtua
         result_xml = palo_helpers.panSetConfig(hostname, api_key, xpath, element)
         result_dict = palo_helpers.XmlDictConfig(ET.XML(result_xml))
         if result_dict['status'] == 'success':
-            logger.info(f"successfully created static route. Returning route_name {route_name}")
+            logger.info(f"successfully created static route.")
         else:
             logger.error(f"Failed to update static route: {route_name}. Returning False")
             logger.error(f"{result_dict}")
@@ -170,6 +170,7 @@ def set_static_route(hostname, api_key, destination, next_hop, interface, virtua
 
     # Commit the change
     if palo_helpers.commit(hostname=hostname, api_key=api_key, message=f"created static route {route_name}"):
+        logger.error(f"Successfully committed. returning route_name: {route_name}")
         return route_name
     else:
         return False
@@ -261,6 +262,7 @@ def delete(event, context):
         logging.error(e)
         return False
 
+    # TODO determine if we should be deleting routes by destination cidr,,, or should we delete by route name.
     delete_static_route(hostname=palo_mgt_ip, api_key=api_key, destination=destination_cidr_block,
                         virtual_router=virtual_router)
 
