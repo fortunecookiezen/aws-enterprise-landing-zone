@@ -13,7 +13,8 @@ try:
     import moo_helpers
     import palo_helpers
     import xml.etree.ElementTree as ET
-    from typing import Optional
+    from typing import Union
+    from palo_service import service_exists
 
     logger = moo_helpers.get_console_logger()
     # logger.setLevel('DEBUG')
@@ -108,17 +109,17 @@ def cidr_isvalid(cidr) -> bool:
     return True
 
 
-def set_security_rule(hostname, api_key, rule_name,
+def set_security_rule(hostname, api_key, rule_name, rule_description='',
                       source_zones=None, source_cidrs=None,
                       destination_zones=None, destination_cidrs=None,
                       applications=None, services=None, users=None,
-                      action='allow',
-                      vsys_name='vsys1') -> Optional[str]:
+                      action='allow', vsys_name='vsys1') -> Union[str, bool]:
     """
     Set Security Rule
     :param string hostname: the IP or hostname for the palo management interface
     :param string api_key: the api key to access the palo (from palo_helpers.getApiKey)
-    :param string rule_name: the name of the rule to manage
+    :param string rule_name: the name of the rule to manage <63 chars
+    :param string rule_description: the description of the rule to manage <1024 chars. (default: '')
     :param list source_zones: the name of the source security zone (default = ['any'])
     :param list source_cidrs: list of cidrs allowed to send traffic (default = ['any'])
     :param list destination_zones: list of allowed security zones for destination (default = ['any'])
@@ -137,8 +138,25 @@ def set_security_rule(hostname, api_key, rule_name,
         f"applications: {applications}"
     )
 
-    source_cidrs_element = str()
+    # make sure rule_name is < 64 chars
+    if len(rule_name) >= 63:
+        logger.critical(f"rule_name {rule_name} has {len(rule_name)} chars. Must be > 64. Returning False")
+        return False
+
+    # make sure rule_description < 1024 chars
+    if len(rule_description) >= 1023:
+        logger.critical(f"rule_description {rule_description} has {len(rule_description)} chars."
+                        f"Must be > 1024. Returning False")
+        return False
+
+    # make sure action is valid
+    if action not in ['allow', 'deny']:
+        logger.critical(f"action: {action} must be either 'allow' or 'deny'. Returning False")
+        return False
+
+    # source cidrs xml element
     source_cidrs = ['any'] if not source_cidrs else source_cidrs
+    source_cidrs_element = str()
     for source_cidr in source_cidrs:
         if source_cidr == 'any' or cidr_isvalid(source_cidr):
             source_cidrs_element += f"<member>{source_cidr}</member>"
@@ -146,8 +164,9 @@ def set_security_rule(hostname, api_key, rule_name,
             logging.critical(f"source cidr: {source_cidr} does not appear to be valid. Returning False")
             return False
 
-    source_zones_element = str()
+    # source zones xml element
     source_zones = ['any'] if not source_zones else source_zones
+    source_zones_element = str()
     for source_zone in source_zones:
         if source_zone == 'any' or security_zone_exists(hostname=hostname, api_key=api_key, vsys_name=vsys_name,
                                                         zone_name=source_zone):
@@ -156,8 +175,9 @@ def set_security_rule(hostname, api_key, rule_name,
             logging.critical(f"source zone: {source_zone} does not appear to be valid. Returning False")
             return False
 
-    destination_cidrs_element = str()
+    # destination cidrs xml element
     destination_cidrs = ['any'] if not destination_cidrs else destination_cidrs
+    destination_cidrs_element = str()
     for destination_cidr in destination_cidrs:
         if destination_cidr == 'any' or cidr_isvalid(destination_cidr):
             destination_cidrs_element += f"<member>{destination_cidr}</member>"
@@ -165,8 +185,9 @@ def set_security_rule(hostname, api_key, rule_name,
             logging.critical(f"destination cidr: {destination_cidr} does not appear to be valid. Returning False")
             return False
 
-    destination_zones_element = str()
+    # destination zones xml element
     destination_zones = ['any'] if not destination_zones else destination_zones
+    destination_zones_element = str()
     for destination_zone in destination_zones:
         if destination_zone == 'any' or security_zone_exists(hostname=hostname, api_key=api_key, vsys_name=vsys_name,
                                                              zone_name=destination_zone):
@@ -175,13 +196,14 @@ def set_security_rule(hostname, api_key, rule_name,
             logging.critical(f"destination zone: {destination_zone} does not appear to be valid. Returning False")
             return False
 
-    users_element = "<source-user>"
+    # users xml element
     users = ['any'] if not users else users
+    users_element = str()
     for user in users:
         # TODO: check that the user is valid
         users_element += f"<member>{user}</member>"
-    users_element += "</source-user>"
 
+    # applications xml element
     applications_element = "<application>"
     applications = [] if not applications else applications
     for application in applications:
@@ -189,20 +211,34 @@ def set_security_rule(hostname, api_key, rule_name,
         applications_element += f"<member>{application}</member>"
     applications_element += "</application>"
 
+    # services xml element
+    services_element = str()
+    services = ['application-default'] if not services else services
+    for service in services:
+        if service == 'application-default' or service_exists(hostname=hostname, api_key=api_key,
+                                                              service_name=service, vsys_name=vsys_name):
+            services_element += f"<member>{service}</member>"
+        else:
+            logging.critical(f"service: {service} doesnt exist on host: {hostname}, vsys: {vsys_name}"
+                             f"Returning False")
+            return False
+
     xpath = f"/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='{vsys_name}']" \
         f"/rulebase/security/rules"
 
     element = f"<entry name='{rule_name}'> " \
+        f"<description>{rule_description}</description> " \
         f"<from>{destination_zones_element}</from> " \
         f"<to>{source_zones_element}</to> " \
         f"<destination>{destination_cidrs_element}</destination> " \
-        f"<service><member>application-default</member></service> " \
+        f"<service>{services_element}</service> " \
         f"<source>{source_cidrs_element}</source> " \
         f"<action>{action}</action> " \
         f"<category><member>any</member></category> " \
         f"<hip-profiles><member>any</member></hip-profiles> " \
         f"{applications_element} " \
-        f"{users_element} " \
+        f"<source-user>{users_element}</source-user> " \
+        f"<action>{action}</action> "\
         f"</entry>"
 
     config_action = "create"
@@ -227,7 +263,7 @@ def set_security_rule(hostname, api_key, rule_name,
     return False
 
 
-def delete_security_rule(hostname, api_key, rule_name, vsys_name='vsys1') -> Optional[str]:
+def delete_security_rule(hostname, api_key, rule_name, vsys_name='vsys1') -> Union[str, bool]:
     """
     Deletes a rule from a palo alto virtual router with a given name
     :param string hostname: IP or hostname of the palo management interface
@@ -264,7 +300,14 @@ def delete_security_rule(hostname, api_key, rule_name, vsys_name='vsys1') -> Opt
 
 
 @helper.create
-def create(event, context):
+def create(event, context) -> Union[str, bool]:
+    """
+    Creates a security rule
+    :param event:
+    :param context:
+    :return: string rule name if successful, else False
+    """
+
     logger.info("Got Create")
     palo_user = event['ResourceProperties']['PaloUser']
     palo_password = event['ResourceProperties']['PaloPassword']
@@ -272,12 +315,14 @@ def create(event, context):
     vsys_name = event['ResourceProperties']['VsysName']
 
     rule_name = event['ResourceProperties']['RuleName']
+    rule_description = event['ResourceProperties']['RuleDescription']
     source_cidrs = event['ResourceProperties']['SourceCidrs']
     source_zones = event['ResourceProperties']['SourceZones']
     destination_cidrs = event['ResourceProperties']['DestinationCidrs']
     destination_zones = event['ResourceProperties']['DestinationZones']
     applications = event['ResourceProperties']['Applications']
     services = event['ResourceProperties']['Services']
+    users = event['ResourceProperties']['Users']
 
     try:
         api_key = palo_helpers.getApiKey(hostname=palo_mgt_ip, username=palo_user, password=palo_password)
@@ -287,21 +332,33 @@ def create(event, context):
         return False
 
     return set_security_rule(hostname=palo_mgt_ip, api_key=api_key, vsys_name=vsys_name,
-                             rule_name=rule_name,
+                             rule_name=rule_name, rule_description=rule_description,
                              source_zones=source_zones, source_cidrs=source_cidrs,
                              destination_zones=destination_zones, destination_cidrs=destination_cidrs,
-                             applications=applications, services=services)
+                             applications=applications, services=services, users=users)
 
 
 @helper.update
-def update(event, context):
+def update(event, context) -> Union[str, bool]:
+    """
+    Updates a security rule
+    :param event:
+    :param context:
+    :return: string rule name if successful, else False
+    """
     logger.info("Got Update")
     # Update is the same as create, just pass the event and context to that function
-    create(event, context)
+    return create(event, context)
 
 
 @helper.delete
-def delete(event, context):
+def delete(event, context) -> Union[str, bool]:
+    """
+    Deletes a security rule
+    :param event:
+    :param context:
+    :return: string rule name if successful, else False
+    """
     logger.info("Got Delete")
     palo_user = event['ResourceProperties']['PaloUser']
     palo_password = event['ResourceProperties']['PaloPassword']
@@ -319,6 +376,7 @@ def delete(event, context):
 
     return delete_security_rule(hostname=palo_mgt_ip, api_key=api_key, vsys_name=vsys_name,
                                 rule_name=rule_name)
+
 
 def handler(event, context):
     helper(event, context)

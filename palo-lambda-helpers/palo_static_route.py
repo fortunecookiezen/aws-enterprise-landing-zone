@@ -12,7 +12,7 @@ try:
     import moo_helpers
     import palo_helpers
     import xml.etree.ElementTree as ET
-    from typing import Optional
+    from typing import Union
 
     logger = moo_helpers.get_console_logger()
     # logger.setLevel('DEBUG')
@@ -24,7 +24,7 @@ except Exception as e:
 
 
 def get_matching_route_name(hostname, api_key, destination, next_hop,
-                            interface, virtual_router='default') -> Optional[str]:
+                            interface, virtual_router='default') -> Union[str, bool]:
     """
     Test to see if a matching route exists on the virtual router
     :param string hostname: the IP or hostname for the palo management interface
@@ -62,7 +62,7 @@ def get_matching_route_name(hostname, api_key, destination, next_hop,
     return False
 
 
-def static_route_exists(hostname, api_key, destination, virtual_router='default') -> Optional[str]:
+def static_route_exists(hostname, api_key, destination, virtual_router='default') -> Union[str, bool]:
     """
     Test to see if a route with matching destination exists on the virtual router
     :param string hostname: the IP or hostname for the palo management interface
@@ -95,7 +95,7 @@ def static_route_exists(hostname, api_key, destination, virtual_router='default'
     return False
 
 
-def set_static_route(hostname, api_key, destination, next_hop, interface, virtual_router='default') -> Optional[str]:
+def set_static_route(hostname, api_key, destination, next_hop, interface, virtual_router='default') -> Union[str, bool]:
     """
     Set Static Route
     :param string hostname: the IP or hostname for the palo management interface
@@ -176,7 +176,7 @@ def set_static_route(hostname, api_key, destination, next_hop, interface, virtua
         return False
 
 
-def delete_static_route(hostname, api_key, destination, virtual_router='default') -> Optional[str]:
+def delete_static_route(hostname, api_key, destination, virtual_router='default') -> Union[str, bool]:
     """
     Deletes a route from a palo alto virtual router with a given destination
     :param string hostname: IP or hostname of the palo management interface

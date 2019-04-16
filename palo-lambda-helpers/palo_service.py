@@ -13,7 +13,7 @@ try:
     import moo_helpers
     import palo_helpers
     import xml.etree.ElementTree as ET
-    from typing import Optional
+    from typing import Union
 
     logger = moo_helpers.get_console_logger()
     # logger.setLevel('DEBUG')
@@ -47,10 +47,8 @@ def service_exists(hostname, api_key, service_name, vsys_name='vsys1') -> bool:
     return False
 
 
-def set_service(hostname, api_key, service_name,
-                destination_ports, protocol='tcp',
-                service_description='',
-                vsys_name='vsys1') -> Optional[str]:
+def set_service(hostname, api_key, service_name, destination_ports, protocol='tcp', service_description='',
+                vsys_name='vsys1') -> Union[str, bool]:
     """
     Creates or updates a service
     :param string hostname: hostname of the router
@@ -111,7 +109,7 @@ def set_service(hostname, api_key, service_name,
     return False
 
 
-def delete_service(hostname, api_key, service_name, vsys_name='vsys1') -> Optional[str]:
+def delete_service(hostname, api_key, service_name, vsys_name='vsys1') -> Union[str, bool]:
     """
     Deletes a service from a palo alto virtual router with a given name
     :param string hostname: IP or hostname of the palo management interface

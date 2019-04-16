@@ -36,6 +36,7 @@ class TestPaloHelpers(unittest.TestCase):
 
         self.virtual_router = 'default'
         self.existing_route_name = '10-net'
+        self.existing_route_name = '10.0.0.0-8'
         self.existing_route_destination = '10.0.0.0/8'
         self.existing_route_next_hop = '10.250.1.1'
         self.existing_route_interface = 'ethernet1/2'
