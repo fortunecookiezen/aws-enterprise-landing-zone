@@ -538,9 +538,11 @@ def get_template():
 
     #############################
     # Routing - DMZ Zone
+    route_tables = {}
     zone = "dmz"
 
     for az in azs:
+        route_tables[az] = {}
         # Route Table
         rtb = ec2.RouteTable(
             "RouteTable" + zone.capitalize() + az.capitalize(),
@@ -548,6 +550,7 @@ def get_template():
             Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), zone, az, "rt"]))
         )
         template.add_resource(rtb)
+        route_tables[az][zone] = rtb
 
         # Default Route to Internet Gateway
         rte = ec2.Route(
@@ -590,6 +593,7 @@ def get_template():
             Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), zone, az,  "rt"]))
         )
         template.add_resource(rtb)
+        route_tables[az][zone] = rtb
 
         # Default Route to Palo Nic in this zone
         rte = ec2.Route(
@@ -638,6 +642,7 @@ def get_template():
             Tags=std_tags + Tags(Name=Join("-", [Ref(asi), Ref(env), zone, az, "rt"]))
         )
         template.add_resource(rtb)
+        route_tables[az][zone] = rtb
 
         # Default Route Palo Interface
         rte = ec2.Route(
@@ -751,6 +756,7 @@ def get_template():
     ##############################
     # Outputs
 
+    # export the bastion public IP
     if create_bastion:
         template.add_output(
             Output(
@@ -760,6 +766,7 @@ def get_template():
             )
         )
 
+    # export the vpc id
     template.add_output(
         Output(
             "vpcId",
@@ -774,24 +781,42 @@ def get_template():
         )
     )
 
-    az = az[0]
-    zone = 'trusted'
-    template.add_output(
-        Output(
-            "subnetId" + az.capitalize() + zone.capitalize(),
-            Description="The ID of the first trusted subnet VPC",
-            Value=Ref(subnets[az][zone]),
-            Export=Export(
-                Join('-', [
-                    Ref("AWS::StackName"),
-                    "subnetId" + az.capitalize() + zone.capitalize(),
-                ])
-            )
-
-        )
-    )
-
     for az in azs:
+        for zone in zones:
+            # Export the route table Ids
+            if zone in route_tables[az]:
+                template.add_output(
+                    Output(
+                        "routeTableId" + az.capitalize() + zone.capitalize(),
+                        Description=f"The Route Table ID for az: {az}, zone: {zone}",
+                        Value=Ref(route_tables[az][zone]),
+                        Export=Export(
+                            Join('-', [
+                                Ref("AWS::StackName"),
+                                "routeTable" + az.capitalize() + zone.capitalize(),
+                                ])
+                        )
+
+                    )
+                )
+            # Export all the subnet IDs
+            if zone in subnets[az]:
+                template.add_output(
+                    Output(
+                        "subnetId" + az.capitalize() + zone.capitalize(),
+                        Description=f"The Subnet ID for az: {az}, zone: {zone}",
+                        Value=Ref(subnets[az][zone]),
+                        Export=Export(
+                            Join('-', [
+                                Ref("AWS::StackName"),
+                                "subnetId" + az.capitalize() + zone.capitalize(),
+                            ])
+                        )
+
+                    )
+                )
+
+        # Export the palo management IPs
         template.add_output(
             Output(
                 "palo" + az.capitalize() + "mgtIp",
@@ -806,6 +831,7 @@ def get_template():
             )
         )
 
+    # export the transit gateway IDs for trusted and web transit gateways
     for zone in ["trusted", "web"]:
         template.add_output(
             Output(
