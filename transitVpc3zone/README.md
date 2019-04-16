@@ -41,7 +41,7 @@ tropoform
       $ cd ../palo-lambda-helpers
       $ sls deploy --paloStackName=TRANSIT_STACK_NAME
       
-* deploy the Palo Static Routes Stack. Ensure parms.paloRoutes.yaml has correct settings
+* wait about 20 mins then deploy the Palo Static Routes Stack. Ensure parms.paloRoutes.yaml has correct settings
 
       $ cd ../transitVpc3zone
       $ tropoform apply PALO_ROUTES_STACK_NAME -m paloStaticRoutes.py -p parms.all.yaml,parms.paloRoutes.yaml
