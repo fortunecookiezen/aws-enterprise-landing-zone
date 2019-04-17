@@ -1,3 +1,6 @@
 vpcCidr: 10.10.0.0/24
-securityZone: trusted
+securityZone: web
 paloStack: transitVpc
+paloHelpersStack: palo-lambda-helpers-prd
+paloUser: admin
+paloPass: MoOCloud123!

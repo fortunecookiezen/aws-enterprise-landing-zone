@@ -1,0 +1,4 @@
+- Create a security group around palo dmz interfaces to allow inbound only from dmz subnet
+- Perhaps dont map a public IP to palo DMZ interface
+
+- create a rule on palos allowing any dmz to any web in bootstrap
