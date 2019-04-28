@@ -5,7 +5,7 @@ Parameters:
   ASI:
     Type: String
     MinLength: 2
-    MaxLength: 4
+    MaxLength: 5
     Description: "asi - must be lower-case, limit 4 characters"
     AllowedPattern: "[a-z]*"
   Environment:
@@ -26,6 +26,36 @@ Parameters:
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
     ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/16
     Default: 10.15.0.0/22
+  DaysforLogsRetention:
+    Description: Specifies the number of days you want to retain log events
+    Type: Number
+    Default: 14
+    AllowedValues:
+      - 1
+      - 3
+      - 5
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+      - 120
+      - 150
+      - 180
+      - 365
+      - 400
+      - 545
+      - 731
+      - 1827
+      - 3653
+  TypeOfTraffic:
+    Description: The type of traffic to log.
+    Type: String
+    Default: REJECT
+    AllowedValues:
+      - ACCEPT
+      - REJECT
+      - ALL
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -40,6 +70,8 @@ Metadata:
           default: "Network Configuration"
         Parameters:
         - vpccidr
+        - TypeOfTraffic
+        - DaysforLogsRetention
     ParameterLabels:
       vpccidr:
         default: "VPC cidr block"
@@ -66,6 +98,15 @@ Resources:
         -
           Key: "Owner"
           Value: !Ref Owner
+
+  VPCDefaultSecurityGroupIngress:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      GroupId: !GetAtt [VPC, DefaultSecurityGroup]
+      IpProtocol: "-1"
+      ToPort: -1
+      FromPort: -1
+      CidrIp: 10.0.0.0/8
 
   S3LogBucket:
     DeletionPolicy: Delete
@@ -127,14 +168,80 @@ Resources:
           Key: "Owner"
           Value: !Ref Owner
 
-  VPCDefaultSecurityGroupIngress:
-    Type: "AWS::EC2::SecurityGroupIngress"
+  FlowLogRole:
+    Type: 'AWS::IAM::Role'
     Properties:
-      GroupId: !GetAtt [VPC, DefaultSecurityGroup]
-      IpProtocol: "-1"
-      ToPort: -1
-      FromPort: -1
-      CidrIp: 10.0.0.0/8
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - vpc-flow-logs.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: flowlogs-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'logs:DescribeLogGroups'
+                  - 'logs:DescribeLogStreams'
+                Resource: '*'
+  FlowLogsGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      RetentionInDays: !Ref DaysforLogsRetention
+  FlowLog:
+    Type: 'AWS::EC2::FlowLog'
+    Properties:
+      DeliverLogsPermissionArn: !GetAtt 
+        - FlowLogRole
+        - Arn
+      LogGroupName: "vpc-flow-log"
+      ResourceId: !Ref VPC
+      ResourceType: VPC
+      TrafficType: !Ref TypeOfTraffic
+  FlowLogBucket:
+    DeletionPolicy: Delete
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Join
+      - '-'
+      - -  !Ref ASI
+        -  !Ref Environment
+        -  !Ref 'AWS::Region'
+        -  vpc-flowlogs
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        -
+          Key: "ManagedBy"
+          Value: !Ref AWS::StackName
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+  S3FlowLog:
+    Type: 'AWS::EC2::FlowLog'
+    Properties:
+      LogDestinationType: s3
+      LogDestination: !GetAtt FlowLogBucket.Arn 
+      ResourceId: !Ref VPC
+      ResourceType: VPC
+      TrafficType: !Ref TypeOfTraffic
 
 Outputs:
   VpcId:
@@ -143,15 +250,25 @@ Outputs:
     Export: # added to export
       Name: VpcId
   logbucketurl:
-    Description: Account Log Bucket
+    Description: Account Log Bucket name
     Value: !GetAtt S3LogBucket.DomainName
     Export: # added to export
       Name: logbucketurl
+  logbucketarn:
+    Description: Log Bucket Arn
+    Value: !GetAtt S3LogBucket.Arn
+    Export:
+      Name: logbucketarn
   objectbucketurl:
-    Description: Account Deployment Bucket
+    Description: Account Deployment Bucket name
     Value: !GetAtt S3ObjectBucket.DomainName
     Export: # added to export
       Name: objectbucketurl
+  objectbucketarn:
+    Description: Account Deployment Bucket
+    Value: !GetAtt S3ObjectBucket.Arn
+    Export: # added to export
+      Name: objectbucketarn
   asi:
     Description: "application system identifier"
     Value: !Ref ASI
