@@ -44,7 +44,7 @@ def get_template():
             Description="asi - must be lower-case, limit 4 characters",
             Type="String",
             MinLength=2,
-            MaxLength=4,
+            MaxLength=5,
             AllowedPattern="[a-z]*"
         )
     )
