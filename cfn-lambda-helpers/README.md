@@ -6,13 +6,24 @@ They are all designed to be called as a cloudformation CustomResource.
 The serverless.yaml file defines exports for each function so that they can be called 
 from other cloudformation stacks
 
-Deploy this stack once per region, before the transitGateway Stack is deployed
+Use the Factory Account to deploy this stack once per region, before the transitGateway Stack is deployed.
 
 ### Requirements 
+
 serverless npm module - for lambda deployment
 serverless-python-requirements plugin for serverless - to manage python requirements
-docker - used by above plugin for building python requirements compatible with aws lambda runtim
+docker - used by above plugin for building python requirements compatible with aws lambda runtime
 
+### Build Host
+
+Add requirements or link to template for build host creation. - jim to build this.
+EC2 instance requirements:
+
+* docker ce
+* python3 & pip
+* terraform
+* tropoform
+* git (to clone repo)
 
 ### Setup
 configure serverless
