@@ -5,12 +5,10 @@ Parameters:
   vpcid: 
     Type: AWS::EC2::VPC::Id
     Description: "vpc"
-  awsregion:
-    Type: String
-    Description: "must match vpc region"
-    AllowedValues:
-      - "us-east-1"
-      - "us-west-2"
+  privatesubneta:
+    Type: AWS::EC2::Subnet::Id
+  privatesubnetb:
+    Type: AWS::EC2::Subnet::Id 
   ASI:
     Type: String
     MinLength: 3
@@ -20,9 +18,10 @@ Parameters:
   Environment:
     Type: String
     MinLength: 3
-    MaxLength: 4
-    Description: "environment (dev|itg|cat|prod)"
+    MaxLength: 7
+    Description: "environment (nonprod|dev|itg|cat|prod)"
     AllowedValues:
+      - "nonprod"
       - "dev"
       - "itg"
       - "cat"
@@ -43,7 +42,7 @@ Resources:
       VPCs: 
         - 
           VPCId: !Ref vpcid
-          VPCRegion: !Ref awsregion
+          VPCRegion: !Ref AWS::Region
       HostedZoneTags: 
         - 
           Key: "Project"
@@ -60,8 +59,8 @@ Resources:
     Properties:
       Direction: "INBOUND"
       IpAddresses: 
-        - SubnetId: !ImportValue privatesubneta
-        - SubnetId: !ImportValue privatesubnetb
+        - SubnetId: !Ref privatesubneta
+        - SubnetId: !Ref privatesubnetb
       Name: !Join [" ", [!Ref Environment, !Ref ASI, "inbound resolver"]]
       SecurityGroupIds: 
         - !Ref DnsSecurityGroup
