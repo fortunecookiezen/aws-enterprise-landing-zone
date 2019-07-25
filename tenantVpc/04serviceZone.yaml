@@ -9,12 +9,6 @@ Parameters:
     Type: AWS::EC2::Subnet::Id
   privatesubnetb:
     Type: AWS::EC2::Subnet::Id 
-  awsregion:
-    Type: String
-    Description: "must match vpc region"
-    AllowedValues:
-      - "us-east-1"
-      - "us-west-2"
   ASI:
     Type: String
     MinLength: 3
@@ -24,9 +18,10 @@ Parameters:
   Environment:
     Type: String
     MinLength: 3
-    MaxLength: 4
-    Description: "environment (dev|itg|cat|prod)"
+    MaxLength: 7
+    Description: "environment (nonprod|dev|itg|cat|prod)"
     AllowedValues:
+      - "nonprod"
       - "dev"
       - "itg"
       - "cat"
@@ -47,7 +42,7 @@ Resources:
       VPCs: 
         - 
           VPCId: !Ref vpcid
-          VPCRegion: !Ref awsregion
+          VPCRegion: !Ref AWS::Region
       HostedZoneTags: 
         - 
           Key: "Project"
