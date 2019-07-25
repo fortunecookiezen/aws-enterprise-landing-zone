@@ -11,9 +11,14 @@ Parameters:
   Environment:
     Type: String
     MinLength: 3
-    MaxLength: 4
-    Description: "environment (dev|itg|cat|prod) - must be lower-case, limit 4 characters"
-    AllowedPattern: "[a-z]*"
+    MaxLength: 7
+    Description: "environment (nonprod|dev|itg|cat|prod)"
+    AllowedValues:
+      - "nonprod"
+      - "dev"
+      - "itg"
+      - "cat"
+      - "prod"
   Owner:
     Type: String
     Description: "email address of the the Owner of this stack"
@@ -167,6 +172,110 @@ Resources:
       TransitGatewayId: !Ref transitGatewayId
       RouteTableId: !Ref RouteTablePrivate
 
+  Zone: 
+    Type: "AWS::Route53::HostedZone"
+    Properties: 
+      HostedZoneConfig: 
+        Comment: !Join [".", ["private services zone file for ", !Ref Environment, !Ref ASI, "aws.service"]]
+      Name: !Join [".", [!Ref Environment, !Ref ASI, "aws.service"]]
+      VPCs: 
+        - 
+          VPCId: !Ref vpcid
+          VPCRegion: !Ref AWS::Region
+      HostedZoneTags: 
+        - 
+          Key: "Project"
+          Value: !Ref ASI
+        - 
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+
+  ServiceResolver:
+    Type: "AWS::Route53Resolver::ResolverEndpoint"
+    Properties:
+      Direction: "INBOUND"
+      IpAddresses: 
+        - SubnetId: !Ref SubnetA
+        - SubnetId: !Ref SubnetB
+      Name: !Join [" ", [!Ref Environment, !Ref ASI, "inbound resolver"]]
+      SecurityGroupIds: 
+        - !Ref DnsSecurityGroup
+      Tags: 
+        - 
+          Key: "Name"
+          Value: !Join ["-", [!Ref Environment, !Ref ASI, "inbound-resolver"]]
+        - 
+          Key: "Project"
+          Value: !Ref ASI
+        - 
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+
+  ServiceResolverRule:
+    Type: "AWS::Route53Resolver::ResolverRule"
+    Properties:
+      DomainName: !Join [".", [!Ref Environment, !Ref ASI, "aws.service"]]
+      Name: !Join ["-", [!Ref Environment, !Ref ASI, "resolver-rule"]]
+      RuleType: SYSTEM
+      Tags: 
+        - 
+          Key: "Name"
+          Value: !Join ["-", [!Ref Environment, !Ref ASI, "resolver-rule"]]
+        - 
+          Key: "Project"
+          Value: !Ref ASI
+        - 
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+
+  ServiceResolverRuleAssociation:
+    Type: "AWS::Route53Resolver::ResolverRuleAssociation"
+    Properties:
+      Name: !Join ["-", [!Ref Environment, !Ref ASI, "resolver-rule-association"]]
+      ResolverRuleId: !Ref ServiceResolverRule
+      VPCId: !Ref vpcid
+
+## Security Groups
+  DnsSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName: !Join ["-", [!Ref Environment, "dns-sg"]]
+      GroupDescription: !Join ["-", [!Ref Environment, !Ref ASI, "DnsSecurityGroup"]]
+      VpcId: !Ref vpcid
+      SecurityGroupIngress:
+          -
+            CidrIp: 10.0.0.0/8
+            IpProtocol: "-1"
+            ToPort: 53
+            FromPort: 53
+      SecurityGroupEgress:
+          -
+            CidrIp: 10.0.0.0/8
+            ToPort: 53
+            IpProtocol: "-1"
+      Tags:
+        -
+          Key: "Name"
+          Value: !Join ["-", [!Ref Environment, !Ref ASI, "DnsSecurityGroup"]]
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+
 Outputs:
   privatesubneta:
     Description: ID of Private Subnet - A
@@ -183,3 +292,13 @@ Outputs:
     Value: !Ref RouteTablePrivate
     Export: 
       Name: routetableprivate
+  zoneid:
+    Description: Hosted Zone ID
+    Value: !Ref Zone
+    Export:
+      Name: serviceszoneid
+  DomainName:
+    Description: "domain name of services zone"
+    Value: !GetAtt ServiceResolverRule.DomainName
+    Export:
+      Name: DomainName          
