@@ -280,12 +280,12 @@ Outputs:
   privatesubneta:
     Description: ID of Private Subnet - A
     Value: !Ref SubnetA
-    Export: # added to export
+    Export: 
       Name: privatesubneta
   privatesubnetb:
     Description: ID of Private Subnet - B
     Value: !Ref SubnetB
-    Export: # added to export
+    Export: 
       Name: privatesubnetb
   routetableprivate:
     Description: "id of private a route table"
@@ -301,4 +301,4 @@ Outputs:
     Description: "domain name of services zone"
     Value: !GetAtt ServiceResolverRule.DomainName
     Export:
-      Name: DomainName          
+      Name: domainname          
