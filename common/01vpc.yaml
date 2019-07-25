@@ -12,8 +12,13 @@ Parameters:
     Type: String
     MinLength: 3
     MaxLength: 7
-    Description: "environment (nonprod|dev|itg|cat|prod) - must be lower-case, limit 7 characters"
-    AllowedPattern: "[a-z]*"
+    Description: "environment (nonprod|dev|itg|cat|prod)"
+    AllowedValues:
+      - "nonprod"
+      - "dev"
+      - "itg"
+      - "cat"
+      - "prod"
   Owner:
     Type: String
     Description: "email address of the the Owner of this stack"
