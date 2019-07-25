@@ -160,6 +160,12 @@ Resources:
       TransitGatewayId: !Ref transitGatewayId
       VpcId: !Ref vpcid
 
+  DefaultRoute:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      TransitGatewayId: !Ref transitGatewayId
+      RouteTableId: !Ref RouteTablePrivate
 
 Outputs:
   privatesubneta:
