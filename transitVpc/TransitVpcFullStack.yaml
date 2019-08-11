@@ -664,3 +664,5 @@ Outputs:
   transitgatewayid:
     Description: ID of TransitGateway
     Value: !Ref TransitGateway
+    Export: # added to export
+      Name: !Sub ${ASI}-${Environment}-transitgateway
