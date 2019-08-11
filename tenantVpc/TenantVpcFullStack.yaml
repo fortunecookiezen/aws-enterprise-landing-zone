@@ -1,0 +1,439 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Common VPC intrastructure CloudFormation template"
+Parameters:
+  ASI:
+    Type: String
+    MinLength: 2
+    MaxLength: 5
+    Description: "asi - must be lower-case, limit 4 characters"
+    AllowedPattern: "[a-z]*"
+  Environment:
+    Type: String
+    MinLength: 3
+    MaxLength: 7
+    Description: "environment (nonprod|dev|itg|cat|prod)"
+    AllowedValues:
+      - "nonprod"
+      - "dev"
+      - "itg"
+      - "cat"
+      - "prod"
+  Owner:
+    Type: String
+    Description: "email address of the the Owner of this stack"
+    Default: "admin@root.com"
+    AllowedPattern: "^[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
+  vpccidr:
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/16
+    Default: 10.15.0.0/22
+  DaysforLogsRetention:
+    Description: Specifies the number of days you want to retain log events
+    Type: Number
+    Default: 14
+    AllowedValues:
+      - 1
+      - 3
+      - 5
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+      - 120
+      - 150
+      - 180
+      - 365
+      - 400
+      - 545
+      - 731
+      - 1827
+      - 3653
+  TypeOfTraffic:
+    Description: The type of traffic to log.
+    Type: String
+    Default: REJECT
+    AllowedValues:
+      - ACCEPT
+      - REJECT
+      - ALL
+  privateacidr:
+    Type: String
+    Description: CIDR to use for private subnet a.
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/24
+    Default: 10.15.2.0/24
+  privatebcidr:
+    Type: String
+    Description: CIDR to use for private subnet b.
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/24
+    Default: 10.15.3.0/24
+  transitgatewayid:
+    Type: String
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Environment Configuration"
+        Parameters:
+        - ASI
+        - Environment
+        - Owner
+      - Label:
+          default: "Network Configuration"
+        Parameters:
+        - vpccidr
+        - privateacidr
+        - privatebcidr
+        - transitgatewayid
+      - Label:
+          default: "Flow Log Configuration"
+        Parameters:
+        - TypeOfTraffic
+        - DaysforLogsRetention
+    ParameterLabels:
+      vpccidr:
+        default: "VPC cidr block"
+
+Resources:
+  VPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: !Ref vpccidr
+      EnableDnsHostnames: true
+      Tags:
+        -
+          Key: "Name"
+          Value: !Join
+          - '-'
+          - -  !Ref AWS::Region
+            -  vpc
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+
+  VPCDefaultSecurityGroupIngress:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      GroupId: !GetAtt [VPC, DefaultSecurityGroup]
+      IpProtocol: "-1"
+      ToPort: -1
+      FromPort: -1
+      CidrIp: 10.0.0.0/8
+
+  S3LogBucket:
+    DeletionPolicy: Delete
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Join
+      - '-'
+      - -  !Ref ASI
+        -  !Ref Environment
+        -  !Ref 'AWS::Region'
+        -  s3logbucket
+      AccessControl: LogDeliveryWrite
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        -
+          Key: "ManagedBy"
+          Value: !Ref AWS::StackName
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+
+  S3ObjectBucket:
+    DeletionPolicy: Delete
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Join
+      - '-'
+      - -  !Ref ASI
+        -  !Ref Environment
+        -  !Ref 'AWS::Region'
+        -  storagebucket
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref S3LogBucket
+        LogFilePrefix: !Join
+        - ''
+        - - !Ref ASI
+          - !Ref Environment
+          - !Ref 'AWS::Region'
+          - storageaccesslogs
+      Tags:
+        -
+          Key: "ManagedBy"
+          Value: !Ref AWS::StackName
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+
+  FlowLogRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - vpc-flow-logs.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: flowlogs-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'logs:DescribeLogGroups'
+                  - 'logs:DescribeLogStreams'
+                Resource: '*'
+  FlowLogsGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      RetentionInDays: !Ref DaysforLogsRetention
+  FlowLog:
+    Type: 'AWS::EC2::FlowLog'
+    Properties:
+      DeliverLogsPermissionArn: !GetAtt 
+        - FlowLogRole
+        - Arn
+      LogGroupName: "vpc-flow-log"
+      ResourceId: !Ref VPC
+      ResourceType: VPC
+      TrafficType: !Ref TypeOfTraffic
+  FlowLogBucket:
+    DeletionPolicy: Delete
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Join
+      - '-'
+      - -  !Ref ASI
+        -  !Ref Environment
+        -  !Ref 'AWS::Region'
+        -  vpc-flowlogs
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        -
+          Key: "ManagedBy"
+          Value: !Ref AWS::StackName
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+  S3FlowLog:
+    Type: 'AWS::EC2::FlowLog'
+    Properties:
+      LogDestinationType: s3
+      LogDestination: !GetAtt FlowLogBucket.Arn 
+      ResourceId: !Ref VPC
+      ResourceType: VPC
+      TrafficType: !Ref TypeOfTraffic
+
+# Begin Subnet configuration
+
+  RouteDefaultPrivateA:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      TransitGatewayId: !Ref transitgatewayid
+      RouteTableId: !Ref RouteTablePrivateA
+
+  RouteDefaultPrivateB:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      TransitGatewayId: !Ref transitgatewayid
+      RouteTableId: !Ref RouteTablePrivateB
+
+  RouteTablePrivateA:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        -
+          Key: "Name"
+          Value: "public-a-rt"
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+
+  RouteTablePrivateB:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        -
+          Key: "Name"
+          Value: "public-b-rt"
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+
+  SubnetPrivateA: # Private Subnet for App Env in AZ - A
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs ]
+      CidrBlock: !Ref privateacidr
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref VPC
+      Tags:
+        -
+          Key: "Name"
+          Value: "private-a-sn"
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+
+  SubnetPrivateB: # Private Subnet for App Env in AZ - B
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs ]
+      CidrBlock: !Ref privatebcidr
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref VPC
+      Tags:
+        -
+          Key: "Name"
+          Value: "private-b-sn"
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+
+  SubnetRouteTableAssociatePrivateA: # Associates the subnet with a route table - passed via parameter
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref RouteTablePrivateA
+      SubnetId: !Ref SubnetPrivateA 
+
+  SubnetRouteTableAssociatePrivateB: # Associates the subnet with a route table - passed via parameter
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref RouteTablePrivateB
+      SubnetId: !Ref SubnetPrivateB 
+
+# End Subnet Definition
+
+Outputs:
+  VpcId:
+    Description: ID of Application VPC
+    Value: !Ref VPC
+    Export: # added to export
+      Name: !Sub ${ASI}-${Environment}-VpcId
+  VpcCidr:
+    Description: CIDR of Application VPC
+    Value: !GetAtt VPC.CidrBlock
+    Export: # added to export
+      Name: !Sub ${ASI}-${Environment}-VpcCidrBlock
+  flowlogsbucket:
+    Description: VPC Flow Logs Bucket Name
+    Value: !Ref FlowLogBucket
+  storagelogsbucket:
+    Description: Storage Access Log Bucket name
+    Value: !Ref S3LogBucket
+    Export:
+      Name: !Sub ${ASI}-${Environment}-StorageLogsBucket
+  storagebucket:
+    Description: Storage Bucket name
+    Value: !Ref S3ObjectBucket
+    Export: # added to export
+      Name: !Sub ${ASI}-${Environment}-StorageBucket
+  asi:
+    Description: "application system identifier"
+    Value: !Ref ASI
+  environment:
+    Description: "system environment (nonprod|dev|itg|cat|prod)"
+    Value: !Ref Environment
+  owner:
+    Description: "contact email address"
+    Value: !Ref Owner
+  privateroutetablea:
+    Description: ID of Private Route Table - A
+    Value: !Ref RouteTablePrivateA
+  privateroutetableb:
+    Description: ID of Private Route Table - B
+    Value: !Ref RouteTablePrivateB
+  privatesubneta:
+    Description: ID of Private Subnet - A
+    Value: !Ref SubnetPrivateA
+    Export: # added to export
+      Name: !Sub ${ASI}-${Environment}-privatesubneta
+  privatesubnetb:
+    Description: ID of Private Subnet - B
+    Value: !Ref SubnetPrivateB
+    Export: # added to export
+      Name: !Sub ${ASI}-${Environment}-privatesubnetb
