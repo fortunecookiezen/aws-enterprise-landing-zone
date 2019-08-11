@@ -553,6 +553,45 @@ Resources:
       SubnetId: !Ref SubnetPrivateB 
 
 # End Subnet Definition
+#
+# Begin TransitGatewayCreation
+  TransitGateway:
+    Type: "AWS::EC2::TransitGateway"
+    Properties:
+      AutoAcceptSharedAttachments: "enable"
+      DefaultRouteTableAssociation: "enable"
+      DefaultRouteTablePropagation: "enable"
+      DnsSupport: "enable"
+      VpnEcmpSupport: "enable"
+      Tags:
+        -
+          Key: "Name"
+          Value: !Join ["-", [!Ref ASI, !Ref Environment, "tgw"]]
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+
+  TransitGatewayAttachment:
+    Type: "AWS::EC2::TransitGatewayAttachment"
+    Properties:
+      SubnetIds:
+        - !Ref SubnetPrivateA
+        - !Ref SubnetPrivateB
+      TransitGatewayId: !Ref TransitGateway
+      VpcId: !Ref VPC
+      Tags:
+        -
+          Key: "Name"
+          Value: !Join ["-", [!Ref ASI, !Ref Environment, "tga"]]
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
 
 Outputs:
   VpcId:
@@ -581,18 +620,12 @@ Outputs:
   asi:
     Description: "application system identifier"
     Value: !Ref ASI
-    Export:
-      Name: asi
   environment:
     Description: "system environment (nonprod|dev|itg|cat|prod)"
     Value: !Ref Environment
-    Export:
-      Name: environment
   owner:
     Description: "contact email address"
     Value: !Ref Owner
-    Export:
-      Name: owner
   natgatewayaid:
     Description: ID of NAT Gateway A
     Value: !Ref NatGatewayA
@@ -628,3 +661,6 @@ Outputs:
     Value: !Ref PublicSubnetB
     Export: # added to export
       Name: !Sub ${ASI}-${Environment}-publicsubnetb
+  transitgatewayid:
+    Description: ID of TransitGateway
+    Value: !Ref TransitGateway
