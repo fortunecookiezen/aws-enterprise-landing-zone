@@ -122,7 +122,7 @@ Resources:
       - -  !Ref ASI
         -  !Ref Environment
         -  !Ref 'AWS::Region'
-        -  logbucket
+        -  s3logbucket
       AccessControl: LogDeliveryWrite
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -151,7 +151,7 @@ Resources:
       - -  !Ref ASI
         -  !Ref Environment
         -  !Ref 'AWS::Region'
-        -  deploymentbucket
+        -  storagebucket
       AccessControl: Private
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -159,6 +159,14 @@ Resources:
               SSEAlgorithm: AES256
       VersioningConfiguration:
         Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref S3LogBucket
+        LogFilePrefix: !Join
+        - ''
+        - - !Ref ASI
+          - !Ref Environment
+          - !Ref 'AWS::Region'
+          - storageaccesslogs
       Tags:
         -
           Key: "ManagedBy"
@@ -254,26 +262,24 @@ Outputs:
     Value: !Ref VPC
     Export: # added to export
       Name: VpcId
-  logbucketurl:
-    Description: Account Log Bucket name
-    Value: !GetAtt S3LogBucket.DomainName
+  VpcCidr:
+    Description: ID of Shared Infrastructure VPC
+    Value: !GetAtt VPC.CidrBlock
     Export: # added to export
-      Name: logbucketurl
-  logbucketarn:
-    Description: Log Bucket Arn
-    Value: !GetAtt S3LogBucket.Arn
+      Name: VpcCidrBlock
+  flowlogsbucket:
+    Description: VPC Flow Logs Bucket Name
+    Value: !Ref FlowLogBucket
+  storagelogsbucket:
+    Description: Storage Access Log Bucket name
+    Value: !Ref S3LogBucket
     Export:
-      Name: logbucketarn
-  objectbucketurl:
-    Description: Account Deployment Bucket name
-    Value: !GetAtt S3ObjectBucket.DomainName
+      Name: StorageLogsBucket
+  storagebucket:
+    Description: Storage Bucket name
+    Value: !Ref S3ObjectBucket
     Export: # added to export
-      Name: objectbucketurl
-  objectbucketarn:
-    Description: Account Deployment Bucket
-    Value: !GetAtt S3ObjectBucket.Arn
-    Export: # added to export
-      Name: objectbucketarn
+      Name: StorageBucket
   asi:
     Description: "application system identifier"
     Value: !Ref ASI
@@ -289,3 +295,7 @@ Outputs:
     Value: !Ref Owner
     Export:
       Name: owner
+
+# This repo needs refactoring based on gained experience. 
+# Multi-stack VPC builds are a pain in the ass to maintain.
+# This should be flattened into a series of vpc patterns: standalone vpc, transit vpc, tenant vpc, private vpc
