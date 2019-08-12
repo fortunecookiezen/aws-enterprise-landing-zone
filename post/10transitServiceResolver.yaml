@@ -156,14 +156,15 @@ Resources:
         -
           Key: "Owner"
           Value: !Ref Owner
+
 Outputs:
+  ServiceResolverId:
+    Description: "Service Resolver Endpoint Id for ServiceResolver rules"
+    Value: !GetAtt ServiceResolver.ResolverEndpointId
   TargetIps:
     Description: "target ips in other account"
     Value: !GetAtt ServiceResolverRule.TargetIps
-    Export:
-      Name: TargetIps
   DomainName:
     Description: "domain name of services zone"
     Value: !GetAtt ServiceResolverRule.DomainName
-    Export:
-      Name: DomainName      
+    
