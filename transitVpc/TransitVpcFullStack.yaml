@@ -93,7 +93,7 @@ Parameters:
     Default: 10.15.3.0/24
   ResourceSharePrincipals:
     Type: String
-    Description: "account numbers to share this resource with, arn of on OU or Organization. Must be members of Organization"
+    Description: "arn of on OU or Organization resource will be shared with"
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:

@@ -27,8 +27,8 @@ Parameters:
   TgwResourceArn:
     Type: String
   ResourceSharePrincipals:
-    Type: List<String>
-    Description: "account numbers to share this resource with, arn of on OU, or Organization. Must be members of Organization"
+    Type: String
+    Description: "arn of on OU or Organization resource will be shared with"
 
 Resources:
   TransitGatewayResourceShare:
