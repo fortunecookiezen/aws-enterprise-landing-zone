@@ -77,7 +77,7 @@ Parameters:
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
     ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/24
     Default: 10.2.2.0/23
-  transitgatewayid:
+  TransitGatewayId:
     Type: String
 
 Metadata:
@@ -95,7 +95,7 @@ Metadata:
         - vpccidr
         - privateacidr
         - privatebcidr
-        - transitgatewayid
+        - TransitGatewayId
       - Label:
           default: "Flow Log Configuration"
         Parameters:
@@ -281,19 +281,42 @@ Resources:
       TrafficType: !Ref TypeOfTraffic
 
 # Begin Subnet configuration
+  TransitGatewayAttachment:
+    Type: "AWS::EC2::TransitGatewayAttachment"
+    Properties:
+      SubnetIds:
+        - !Ref SubnetPrivateA
+        - !Ref SubnetPrivateB
+      TransitGatewayId: !Ref TransitGatewayId
+      VpcId: !Ref VPC
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub "${ASI}-${Environment}-tga"
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
 
   RouteDefaultPrivateA:
+    DependsOn: TransitGatewayAttachment
     Type: "AWS::EC2::Route"
     Properties:
       DestinationCidrBlock: 0.0.0.0/0
-      TransitGatewayId: !Ref transitgatewayid
+      TransitGatewayId: !Ref TransitGatewayId
       RouteTableId: !Ref RouteTablePrivateA
 
   RouteDefaultPrivateB:
+    DependsOn: TransitGatewayAttachment
     Type: "AWS::EC2::Route"
     Properties:
       DestinationCidrBlock: 0.0.0.0/0
-      TransitGatewayId: !Ref transitgatewayid
+      TransitGatewayId: !Ref TransitGatewayId
       RouteTableId: !Ref RouteTablePrivateB
 
   RouteTablePrivateA:
@@ -303,7 +326,7 @@ Resources:
       Tags:
         -
           Key: "Name"
-          Value: "public-a-rt"
+          Value: "private-a-rt"
         -
           Key: "Project"
           Value: !Ref ASI
@@ -321,7 +344,7 @@ Resources:
       Tags:
         -
           Key: "Name"
-          Value: "public-b-rt"
+          Value: "private-b-rt"
         -
           Key: "Project"
           Value: !Ref ASI
@@ -437,3 +460,4 @@ Outputs:
     Value: !Ref SubnetPrivateB
     Export: # added to export
       Name: !Sub ${ASI}-${Environment}-privatesubnetb
+# Add Transit Gateway attachment, dumbass.
