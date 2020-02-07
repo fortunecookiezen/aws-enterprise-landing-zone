@@ -91,7 +91,9 @@ Parameters:
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
     ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/24
     Default: 10.15.3.0/24
-
+  ResourceSharePrincipals:
+    Type: String
+    Description: "account numbers to share this resource with, arn of on OU or Organization. Must be members of Organization"
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -109,6 +111,7 @@ Metadata:
         - publicbcidr
         - privateacidr
         - privatebcidr
+        - ResourceSharePrincipals
       - Label:
           default: "Flow Log Configuration"
         Parameters:
@@ -592,7 +595,25 @@ Resources:
         -
           Key: "Owner"
           Value: !Ref Owner
-
+  TransitGatewayResourceShare:
+    Type: AWS::RAM::ResourceShare
+    Properties: 
+      AllowExternalPrincipals: false
+      Name: !Sub ${ASI}-${Environment}-${AWS::Region}-tgw-resourceshare
+      Principals: 
+        - !Ref ResourceSharePrincipals
+      ResourceArns: 
+        - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:transit-gateway/${TransitGateway}"
+      Tags:
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
 Outputs:
   VpcId:
     Description: ID of Shared Infrastructure VPC

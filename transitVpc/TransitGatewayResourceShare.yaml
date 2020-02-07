@@ -1,0 +1,55 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Creates Resource Share for transit gateway in transit gateway-owning account"
+Parameters:
+  ASI:
+    Type: String
+    MinLength: 2
+    MaxLength: 5
+    Description: "asi - must be lower-case, limit 4 characters"
+    AllowedPattern: "[a-z]*"
+  Environment:
+    Type: String
+    MinLength: 3
+    MaxLength: 7
+    Description: "environment (nonprod|dev|itg|cat|prod)"
+    AllowedValues:
+      - "nonprod"
+      - "dev"
+      - "itg"
+      - "cat"
+      - "prod"
+  Owner:
+    Type: String
+    Description: "email address of the the Owner of this stack"
+    Default: "admin@root.com"
+    AllowedPattern: "^[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
+  TgwResourceArn:
+    Type: String
+  ResourceSharePrincipals:
+    Type: List<String>
+    Description: "account numbers to share this resource with, arn of on OU, or Organization. Must be members of Organization"
+
+Resources:
+  TransitGatewayResourceShare:
+    Type: AWS::RAM::ResourceShare
+    Properties: 
+      AllowExternalPrincipals: false
+      Name: !Sub ${ASI}-${Environment}-${AWS::Region}-tgw-resourceshare
+      Principals: 
+        - !Ref ResourceSharePrincipals
+      ResourceArns: 
+        - !Ref TgwResourceArn
+      Tags:
+        -
+          Key: "Project"
+          Value: !Ref ASI
+        -
+          Key: "Environment"
+          Value: !Ref Environment
+        -
+          Key: "Owner"
+          Value: !Ref Owner
+
+
+
